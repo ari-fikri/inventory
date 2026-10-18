@@ -52,6 +52,15 @@ Feature: Stock Movement and Ledger Management
       | OUT           | 30       | 70            | SO-200    |
       | IN            | 100      | 100           | PO-100    |
 
+  Scenario: Reject stock operations on an inactive item
+    Given I am authenticated as tenant "tenant-alpha"
+    And an item exists with SKU "INACTIVE-ITEM-01" and name "Discontinued Item"
+    And I deactivate item with SKU "INACTIVE-ITEM-01"
+    When I add 10 units of stock to item with SKU "INACTIVE-ITEM-01" with reference "PO-FAIL" and note "Restock attempt"
+    Then the response status code should be 400
+    And the response should contain error "cannot perform stock movements on an inactive item"
+
+
 
 
 
