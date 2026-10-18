@@ -38,5 +38,20 @@ Feature: Stock Movement and Ledger Management
     And the response should contain error "insufficient stock for fulfillment"
     And the current stock for item with SKU "GUARD-ITEM-01" should be 10
 
+  Scenario: Retrieve chronological stock movement history and audit trail
+    Given I am authenticated as tenant "tenant-alpha"
+    And an item exists with SKU "HIST-01" and name "History Tracked Item"
+    And I add 100 units of stock to item with SKU "HIST-01" with reference "PO-100" and note "Initial batch"
+    And I dispatch 30 units of stock from item with SKU "HIST-01" with reference "SO-200" and note "Customer shipment"
+    And I adjust stock for item with SKU "HIST-01" to target quantity 65 with reference "AUDIT-300" and note "Discrepancy audit"
+    When I query stock movements for item with SKU "HIST-01"
+    Then the response status code should be 200
+    And the stock movements history should contain 3 entries in reverse chronological order:
+      | movement_type | quantity | balance_after | reference |
+      | ADJUST        | 5        | 65            | AUDIT-300 |
+      | OUT           | 30       | 70            | SO-200    |
+      | IN            | 100      | 100           | PO-100    |
+
+
 
 
