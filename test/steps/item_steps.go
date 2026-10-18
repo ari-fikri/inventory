@@ -106,6 +106,20 @@ func RegisterItemSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 				if item.TenantID != expected {
 					return fmt.Errorf("expected tenant_id %q, got %q", expected, item.TenantID)
 				}
+			case "description":
+				if item.Description != expected {
+					return fmt.Errorf("expected description %q, got %q", expected, item.Description)
+				}
+			case "unit_price":
+				expFloat, _ := strconv.ParseFloat(expected, 64)
+				if item.UnitPrice != expFloat {
+					return fmt.Errorf("expected unit_price %v, got %v", expFloat, item.UnitPrice)
+				}
+			case "min_threshold":
+				expInt, _ := strconv.Atoi(expected)
+				if item.MinThreshold != expInt {
+					return fmt.Errorf("expected min_threshold %d, got %d", expInt, item.MinThreshold)
+				}
 			case "is_active":
 				expBool, _ := strconv.ParseBool(expected)
 				if item.IsActive != expBool {
@@ -114,6 +128,37 @@ func RegisterItemSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 			}
 		}
 		return nil
+	})
+
+	sc.Step(`^I update item with SKU "([^"]*)" with the following details:$`, func(sku string, table *godog.Table) error {
+		payload := make(map[string]any)
+
+		for _, row := range table.Rows {
+			if len(row.Cells) < 2 {
+				continue
+			}
+			key := row.Cells[0].Value
+			val := row.Cells[1].Value
+
+			switch key {
+			case "unit_price":
+				f, err := strconv.ParseFloat(val, 64)
+				if err != nil {
+					return fmt.Errorf("invalid unit_price: %w", err)
+				}
+				payload[key] = f
+			case "min_threshold":
+				i, err := strconv.Atoi(val)
+				if err != nil {
+					return fmt.Errorf("invalid min_threshold: %w", err)
+				}
+				payload[key] = i
+			default:
+				payload[key] = val
+			}
+		}
+
+		return ctx.SendRequest("PUT", "/api/v1/items/sku/"+sku, ctx.CurrentTenantID, payload)
 	})
 
 	sc.Step(`^I query low stock items$`, func() error {

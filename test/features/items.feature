@@ -51,4 +51,20 @@ Feature: Item Catalog Management
     And the low stock list should contain item with SKU "LOW-01"
     And the low stock list should not contain item with SKU "HIGH-01"
 
+  Scenario: Successfully update existing item details
+    Given I am authenticated as tenant "tenant-alpha"
+    And an item exists with SKU "UPDATE-001" and name "Old Wireless Mouse"
+    When I update item with SKU "UPDATE-001" with the following details:
+      | name          | Pro Wireless Mouse                |
+      | description   | Ergonomic rechargeable mouse 4Khz |
+      | unit_price    | 79.99                             |
+      | min_threshold | 8                                 |
+    Then the response status code should be 200
+    And the response should contain item details:
+      | sku           | UPDATE-001                        |
+      | name          | Pro Wireless Mouse                |
+      | description   | Ergonomic rechargeable mouse 4Khz |
+      | unit_price    | 79.99                             |
+      | min_threshold | 8                                 |
+
 

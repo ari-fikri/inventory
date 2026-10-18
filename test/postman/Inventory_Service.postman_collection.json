@@ -359,6 +359,62 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Update Item Details",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Item details are updated\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.sku).to.eql(\"SKU-001\");",
+                  "    pm.expect(jsonData.name).to.eql(\"Updated Ergonomic Keyboard\");",
+                  "    pm.expect(jsonData.description).to.eql(\"Updated mechanical keyboard with RGB\");",
+                  "    pm.expect(jsonData.unit_price).to.eql(119.99);",
+                  "    pm.expect(jsonData.min_threshold).to.eql(8);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_alpha}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Ergonomic Keyboard\",\n  \"description\": \"Updated mechanical keyboard with RGB\",\n  \"unit_price\": 119.99,\n  \"min_threshold\": 8\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/items/sku/SKU-001",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items",
+                "sku",
+                "SKU-001"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
