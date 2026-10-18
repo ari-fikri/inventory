@@ -113,3 +113,90 @@ func (s *PurchaseOrderService) SubmitPurchaseOrder(ctx context.Context, tenantID
 	}
 	return po, nil
 }
+
+func (s *PurchaseOrderService) ReceivePurchaseOrder(ctx context.Context, cmd port.ReceivePOCommand) (*domain.PurchaseOrder, error) {
+	if len(cmd.Items) == 0 {
+		return nil, domain.ErrInvalidQuantity
+	}
+
+	po, err := s.poRepo.GetByNumber(ctx, cmd.TenantID, cmd.PONumber)
+	if err != nil {
+		return nil, err
+	}
+
+	if po.Status != domain.POStatusOrdered && po.Status != domain.POStatusPartiallyReceived {
+		return nil, domain.ErrInvalidPOStatus
+	}
+
+	skuTotalReceiving := make(map[string]int)
+	for _, reqItem := range cmd.Items {
+		if reqItem.ReceivedQuantity <= 0 {
+			return nil, domain.ErrInvalidQuantity
+		}
+		skuTotalReceiving[reqItem.SKU] += reqItem.ReceivedQuantity
+	}
+
+	for sku, recvQty := range skuTotalReceiving {
+		found := false
+		for _, it := range po.Items {
+			if it.SKU == sku {
+				found = true
+				remaining := it.OrderedQuantity - it.ReceivedQuantity
+				if recvQty > remaining {
+					return nil, domain.ErrOverReceiving
+				}
+				break
+			}
+		}
+		if !found {
+			return nil, domain.ErrItemNotFound
+		}
+	}
+
+	for _, reqItem := range cmd.Items {
+		for i := range po.Items {
+			it := &po.Items[i]
+			if it.SKU == reqItem.SKU {
+				_, _, err := s.stockService.StockIn(ctx, port.StockInCommand{
+					TenantID:    cmd.TenantID,
+					SKU:         it.SKU,
+					WarehouseID: po.WarehouseID,
+					Quantity:    reqItem.ReceivedQuantity,
+					UnitCost:    it.UnitCost,
+					Reference:   po.PONumber,
+					Notes:       "PO delivery receipt",
+				})
+				if err != nil {
+					return nil, err
+				}
+
+				it.ReceivedQuantity += reqItem.ReceivedQuantity
+				if err := s.poRepo.UpdateItemReceivedQty(ctx, it.ID, it.ReceivedQuantity); err != nil {
+					return nil, err
+				}
+				break
+			}
+		}
+	}
+
+	allReceived := true
+	for _, it := range po.Items {
+		if it.ReceivedQuantity < it.OrderedQuantity {
+			allReceived = false
+			break
+		}
+	}
+
+	if allReceived {
+		po.Status = domain.POStatusReceived
+	} else {
+		po.Status = domain.POStatusPartiallyReceived
+	}
+	po.UpdatedAt = time.Now().UTC()
+
+	if err := s.poRepo.Update(ctx, po); err != nil {
+		return nil, err
+	}
+
+	return po, nil
+}

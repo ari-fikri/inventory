@@ -248,6 +248,68 @@ func (h *PurchaseOrderHandler) SubmitPurchaseOrder(w http.ResponseWriter, r *htt
 	writeJSON(w, http.StatusOK, toPODTO(po))
 }
 
+type ReceivePOItemRequestDTO struct {
+	SKU              string `json:"sku"`
+	ReceivedQuantity int    `json:"received_quantity"`
+}
+
+type ReceivePORequest struct {
+	Items []ReceivePOItemRequestDTO `json:"items"`
+}
+
+func (h *PurchaseOrderHandler) ReceivePurchaseOrder(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := middleware.GetTenantID(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "X-Tenant-ID header is required"})
+		return
+	}
+
+	poNumber := r.PathValue("po_number")
+	if poNumber == "" {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "po_number is required"})
+		return
+	}
+
+	var req ReceivePORequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "invalid request body: " + err.Error()})
+		return
+	}
+
+	items := make([]port.ReceivePOItemCommand, 0, len(req.Items))
+	for _, it := range req.Items {
+		items = append(items, port.ReceivePOItemCommand{
+			SKU:              it.SKU,
+			ReceivedQuantity: it.ReceivedQuantity,
+		})
+	}
+
+	cmd := port.ReceivePOCommand{
+		TenantID: tenantID,
+		PONumber: poNumber,
+		Items:    items,
+	}
+
+	po, err := h.poService.ReceivePurchaseOrder(r.Context(), cmd)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrPONotFound):
+			writeJSON(w, http.StatusNotFound, middleware.ErrorResponse{Error: "purchase order not found"})
+		case errors.Is(err, domain.ErrInvalidPOStatus):
+			writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: err.Error()})
+		case errors.Is(err, domain.ErrOverReceiving):
+			writeJSON(w, http.StatusUnprocessableEntity, middleware.ErrorResponse{Error: err.Error()})
+		case errors.Is(err, domain.ErrInvalidQuantity), errors.Is(err, domain.ErrItemNotFound):
+			writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: err.Error()})
+		default:
+			writeJSON(w, http.StatusInternalServerError, middleware.ErrorResponse{Error: "failed to receive purchase order: " + err.Error()})
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toPODTO(po))
+}
+
 func toPODTO(po *domain.PurchaseOrder) PurchaseOrderResponseDTO {
 	itemsDTO := make([]POLineItemResponseDTO, 0, len(po.Items))
 	for _, it := range po.Items {

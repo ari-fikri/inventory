@@ -47,6 +47,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		mux.HandleFunc("POST /api/v1/purchase-orders", cfg.PurchaseOrderHandler.CreatePurchaseOrder)
 		mux.HandleFunc("GET /api/v1/purchase-orders/{po_number}", cfg.PurchaseOrderHandler.GetPurchaseOrder)
 		mux.HandleFunc("PATCH /api/v1/purchase-orders/{po_number}/submit", cfg.PurchaseOrderHandler.SubmitPurchaseOrder)
+		mux.HandleFunc("POST /api/v1/purchase-orders/{po_number}/receive", cfg.PurchaseOrderHandler.ReceivePurchaseOrder)
 	}
 
 	// Wrap entire API with TenantMiddleware
