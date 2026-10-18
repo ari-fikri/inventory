@@ -58,6 +58,45 @@ func (r *ItemRepository) Create(ctx context.Context, item *domain.Item) error {
 	return nil
 }
 
+func (r *ItemRepository) Update(ctx context.Context, item *domain.Item) error {
+	query := `
+		UPDATE items
+		SET name = ?, description = ?, unit_price = ?, min_threshold = ?, is_active = ?, updated_at = ?
+		WHERE tenant_id = ? AND id = ?
+	`
+
+	isActiveInt := 0
+	if item.IsActive {
+		isActiveInt = 1
+	}
+
+	res, err := r.db.ExecContext(
+		ctx,
+		query,
+		item.Name,
+		item.Description,
+		item.UnitPrice,
+		item.MinThreshold,
+		isActiveInt,
+		item.UpdatedAt.Format(time.RFC3339Nano),
+		item.TenantID,
+		item.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update item: %w", err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return domain.ErrItemNotFound
+	}
+
+	return nil
+}
+
 func (r *ItemRepository) GetBySKU(ctx context.Context, tenantID, sku string) (*domain.Item, error) {
 	query := `
 		SELECT id, tenant_id, sku, name, description, unit_price, min_threshold, is_active, created_at, updated_at

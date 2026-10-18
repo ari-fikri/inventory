@@ -57,3 +57,50 @@ func TestItemRepository_CreateAndGet(t *testing.T) {
 		t.Errorf("expected ErrItemNotFound for tenant-beta, got %v", err)
 	}
 }
+
+func TestItemRepository_Update(t *testing.T) {
+	repo := setupTestDB(t)
+	ctx := context.Background()
+
+	item, err := domain.NewItem(domain.NewItemParams{
+		TenantID:     "tenant-alpha",
+		SKU:          "KEY-UPDATE",
+		Name:         "Old Keyboard",
+		Description:  "Old Switches",
+		UnitPrice:    50.0,
+		MinThreshold: 1,
+	})
+	if err != nil {
+		t.Fatalf("failed to create item: %v", err)
+	}
+
+	if err := repo.Create(ctx, item); err != nil {
+		t.Fatalf("failed to insert item: %v", err)
+	}
+
+	_ = item.Update(domain.UpdateItemParams{
+		Name:         "New Keyboard",
+		Description:  "New Switches",
+		UnitPrice:    75.0,
+		MinThreshold: 5,
+	})
+
+	if err := repo.Update(ctx, item); err != nil {
+		t.Fatalf("failed to update item: %v", err)
+	}
+
+	updated, err := repo.GetBySKU(ctx, "tenant-alpha", "KEY-UPDATE")
+	if err != nil {
+		t.Fatalf("failed to get updated item: %v", err)
+	}
+	if updated.Name != "New Keyboard" {
+		t.Errorf("expected New Keyboard, got %s", updated.Name)
+	}
+	if updated.UnitPrice != 75.0 {
+		t.Errorf("expected 75.0, got %f", updated.UnitPrice)
+	}
+	if updated.MinThreshold != 5 {
+		t.Errorf("expected 5, got %d", updated.MinThreshold)
+	}
+}
+

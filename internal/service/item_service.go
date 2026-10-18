@@ -44,6 +44,29 @@ func (s *ItemService) CreateItem(ctx context.Context, cmd port.CreateItemCommand
 	return item, nil
 }
 
+func (s *ItemService) UpdateItem(ctx context.Context, cmd port.UpdateItemCommand) (*domain.Item, error) {
+	item, err := s.repo.GetBySKU(ctx, cmd.TenantID, cmd.SKU)
+	if err != nil {
+		return nil, err
+	}
+
+	err = item.Update(domain.UpdateItemParams{
+		Name:         cmd.Name,
+		Description:  cmd.Description,
+		UnitPrice:    cmd.UnitPrice,
+		MinThreshold: cmd.MinThreshold,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.repo.Update(ctx, item); err != nil {
+		return nil, err
+	}
+
+	return item, nil
+}
+
 func (s *ItemService) GetItem(ctx context.Context, tenantID, id string) (*domain.Item, error) {
 	return s.repo.GetByID(ctx, tenantID, id)
 }

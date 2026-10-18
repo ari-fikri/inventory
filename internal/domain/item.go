@@ -83,3 +83,30 @@ func NewItem(params NewItemParams) (*Item, error) {
 		UpdatedAt:    now,
 	}, nil
 }
+
+type UpdateItemParams struct {
+	Name         string
+	Description  string
+	UnitPrice    float64
+	MinThreshold int
+}
+
+func (i *Item) Update(params UpdateItemParams) error {
+	name := strings.TrimSpace(params.Name)
+	if name == "" {
+		return ErrEmptyName
+	}
+	if params.UnitPrice < 0 {
+		return ErrNegativeUnitPrice
+	}
+	if params.MinThreshold < 0 {
+		return ErrNegativeThreshold
+	}
+
+	i.Name = name
+	i.Description = strings.TrimSpace(params.Description)
+	i.UnitPrice = params.UnitPrice
+	i.MinThreshold = params.MinThreshold
+	i.UpdatedAt = time.Now().UTC()
+	return nil
+}

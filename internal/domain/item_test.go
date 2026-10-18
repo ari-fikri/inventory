@@ -98,3 +98,70 @@ func TestNewItem_ValidationErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestItem_Update(t *testing.T) {
+	item, err := domain.NewItem(domain.NewItemParams{
+		TenantID:     "tenant-1",
+		SKU:          "SKU-UPDATE",
+		Name:         "Initial Name",
+		Description:  "Initial Desc",
+		UnitPrice:    10.0,
+		MinThreshold: 2,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error creating item: %v", err)
+	}
+
+	err = item.Update(domain.UpdateItemParams{
+		Name:         "Updated Name",
+		Description:  "Updated Desc",
+		UnitPrice:    15.5,
+		MinThreshold: 5,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error updating item: %v", err)
+	}
+
+	if item.Name != "Updated Name" {
+		t.Errorf("expected Updated Name, got %s", item.Name)
+	}
+	if item.Description != "Updated Desc" {
+		t.Errorf("expected Updated Desc, got %s", item.Description)
+	}
+	if item.UnitPrice != 15.5 {
+		t.Errorf("expected 15.5, got %f", item.UnitPrice)
+	}
+	if item.MinThreshold != 5 {
+		t.Errorf("expected 5, got %d", item.MinThreshold)
+	}
+
+	// Negative unit price
+	err = item.Update(domain.UpdateItemParams{
+		Name:         "Valid Name",
+		UnitPrice:    -1,
+		MinThreshold: 1,
+	})
+	if err != domain.ErrNegativeUnitPrice {
+		t.Errorf("expected ErrNegativeUnitPrice, got %v", err)
+	}
+
+	// Empty name
+	err = item.Update(domain.UpdateItemParams{
+		Name:         "   ",
+		UnitPrice:    10,
+		MinThreshold: 1,
+	})
+	if err != domain.ErrEmptyName {
+		t.Errorf("expected ErrEmptyName, got %v", err)
+	}
+
+	// Negative threshold
+	err = item.Update(domain.UpdateItemParams{
+		Name:         "Valid Name",
+		UnitPrice:    10,
+		MinThreshold: -2,
+	})
+	if err != domain.ErrNegativeThreshold {
+		t.Errorf("expected ErrNegativeThreshold, got %v", err)
+	}
+}

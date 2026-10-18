@@ -166,6 +166,72 @@ func (h *ItemHandler) GetBySKU(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+type UpdateItemRequest struct {
+	Name         string  `json:"name"`
+	Description  string  `json:"description"`
+	UnitPrice    float64 `json:"unit_price"`
+	MinThreshold int     `json:"min_threshold"`
+}
+
+func (h *ItemHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := middleware.GetTenantID(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "X-Tenant-ID header is required"})
+		return
+	}
+
+	sku := r.PathValue("sku")
+	if sku == "" {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "SKU parameter is required"})
+		return
+	}
+
+	var req UpdateItemRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "invalid request body: " + err.Error()})
+		return
+	}
+
+	cmd := port.UpdateItemCommand{
+		TenantID:     tenantID,
+		SKU:          sku,
+		Name:         req.Name,
+		Description:  req.Description,
+		UnitPrice:    req.UnitPrice,
+		MinThreshold: req.MinThreshold,
+	}
+
+	item, err := h.itemService.UpdateItem(r.Context(), cmd)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrItemNotFound):
+			writeJSON(w, http.StatusNotFound, middleware.ErrorResponse{Error: "item not found"})
+		case errors.Is(err, domain.ErrEmptyName),
+			errors.Is(err, domain.ErrNegativeUnitPrice),
+			errors.Is(err, domain.ErrNegativeThreshold):
+			writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: err.Error()})
+		default:
+			writeJSON(w, http.StatusInternalServerError, middleware.ErrorResponse{Error: "internal server error"})
+		}
+		return
+	}
+
+	resp := ItemResponseDTO{
+		ID:           item.ID,
+		TenantID:     item.TenantID,
+		SKU:          item.SKU,
+		Name:         item.Name,
+		Description:  item.Description,
+		UnitPrice:    item.UnitPrice,
+		MinThreshold: item.MinThreshold,
+		IsActive:     item.IsActive,
+		CreatedAt:    item.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:    item.UpdatedAt.Format(time.RFC3339Nano),
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
 type LowStockItemResponseDTO struct {
 	ItemResponseDTO
 	CurrentQuantity int `json:"current_quantity"`

@@ -19,6 +19,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		mux.HandleFunc("GET /api/v1/items", cfg.ItemHandler.List)
 		mux.HandleFunc("GET /api/v1/items/low-stock", cfg.ItemHandler.ListLowStock)
 		mux.HandleFunc("GET /api/v1/items/sku/{sku}", cfg.ItemHandler.GetBySKU)
+		mux.HandleFunc("PUT /api/v1/items/sku/{sku}", cfg.ItemHandler.Update)
 	}
 
 	if cfg.StockHandler != nil {

@@ -50,4 +50,30 @@ Handler --> Client : 201 Created\n{"id": "...", "sku": "SKU-001", "tenant_id": "
 deactivate Handler
 deactivate MW
 
+== Update Item Details ==
+Client -> MW : PUT /api/v1/items/sku/{sku}\nHeader: X-Tenant-ID: "tenant-acme"\nBody: {"name": "Pro Hammer", ...}
+activate MW
+MW -> Handler : ctx = WithTenantID(ctx, "tenant-acme")
+activate Handler
+Handler -> Service : UpdateItem(ctx, cmd)
+activate Service
+Service -> Repo : GetBySKU(ctx, tenantID, sku)
+activate Repo
+Repo -> DB : SELECT * FROM items WHERE tenant_id = ? AND sku = ?
+DB --> Repo : Item row
+Repo --> Service : Item entity
+deactivate Repo
+Service -> Service : item.Update(params)
+Service -> Repo : Update(ctx, item)
+activate Repo
+Repo -> DB : UPDATE items SET ... WHERE tenant_id = ? AND id = ?
+DB --> Repo : RowsAffected = 1
+Repo --> Service : nil (Success)
+deactivate Repo
+Service --> Handler : updatedItem, nil
+deactivate Service
+Handler --> Client : 200 OK\n{"sku": "SKU-001", "name": "Pro Hammer", ...}
+deactivate Handler
+deactivate MW
+
 @enduml
