@@ -28,6 +28,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		mux.HandleFunc("POST /api/v1/items/sku/{sku}/stock/in", cfg.StockHandler.StockIn)
 		mux.HandleFunc("POST /api/v1/items/sku/{sku}/stock/out", cfg.StockHandler.StockOut)
 		mux.HandleFunc("POST /api/v1/items/sku/{sku}/stock/adjust", cfg.StockHandler.StockAdjust)
+		mux.HandleFunc("POST /api/v1/items/sku/{sku}/stock/transfer", cfg.StockHandler.StockTransfer)
 		mux.HandleFunc("GET /api/v1/items/sku/{sku}/stock", cfg.StockHandler.GetStock)
 		mux.HandleFunc("GET /api/v1/items/sku/{sku}/movements", cfg.StockHandler.ListMovements)
 	}

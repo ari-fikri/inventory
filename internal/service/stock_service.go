@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"new-inventory/internal/domain"
@@ -203,6 +204,100 @@ func (s *StockService) StockAdjust(ctx context.Context, cmd port.StockAdjustComm
 	}
 
 	return movement, updatedLevel, nil
+}
+
+func (s *StockService) StockTransfer(ctx context.Context, cmd port.StockTransferCommand) (*domain.StockTransferResult, error) {
+	if cmd.Quantity <= 0 {
+		return nil, domain.ErrInvalidQuantity
+	}
+	srcWH := strings.TrimSpace(cmd.SourceWarehouseID)
+	if srcWH == "" {
+		srcWH = "default"
+	}
+	destWH := strings.TrimSpace(cmd.TargetWarehouseID)
+	if destWH == "" {
+		destWH = "default"
+	}
+	if srcWH == destWH {
+		return nil, domain.ErrSameWarehouse
+	}
+
+	item, err := s.itemRepo.GetBySKU(ctx, cmd.TenantID, cmd.SKU)
+	if err != nil {
+		return nil, err
+	}
+	if !item.IsActive {
+		return nil, domain.ErrItemInactive
+	}
+
+	srcStock, err := s.stockRepo.GetStock(ctx, cmd.TenantID, item.ID, srcWH)
+	srcQty := 0
+	if err != nil && !errors.Is(err, domain.ErrStockNotFound) {
+		return nil, err
+	}
+	if srcStock != nil {
+		srcQty = srcStock.Quantity
+	}
+
+	if srcQty < cmd.Quantity {
+		return nil, domain.ErrInsufficientStock
+	}
+
+	destStock, err := s.stockRepo.GetStock(ctx, cmd.TenantID, item.ID, destWH)
+	destQty := 0
+	if err != nil && !errors.Is(err, domain.ErrStockNotFound) {
+		return nil, err
+	}
+	if destStock != nil {
+		destQty = destStock.Quantity
+	}
+
+	newSourceBal := srcQty - cmd.Quantity
+	newDestBal := destQty + cmd.Quantity
+
+	outMovement, err := domain.NewStockMovement(domain.NewStockMovementParams{
+		TenantID:     cmd.TenantID,
+		ItemID:       item.ID,
+		WarehouseID:  srcWH,
+		MovementType: domain.MovementTypeTransferOut,
+		Quantity:     cmd.Quantity,
+		BalanceAfter: newSourceBal,
+		Reference:    cmd.Reference,
+		Notes:        cmd.Notes,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	inMovement, err := domain.NewStockMovement(domain.NewStockMovementParams{
+		TenantID:     cmd.TenantID,
+		ItemID:       item.ID,
+		WarehouseID:  destWH,
+		MovementType: domain.MovementTypeTransferIn,
+		Quantity:     cmd.Quantity,
+		BalanceAfter: newDestBal,
+		Reference:    cmd.Reference,
+		Notes:        cmd.Notes,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.stockRepo.RecordTransfer(ctx, outMovement, inMovement, newSourceBal, newDestBal); err != nil {
+		return nil, err
+	}
+
+	return &domain.StockTransferResult{
+		ItemID:            item.ID,
+		TenantID:          cmd.TenantID,
+		SourceWarehouseID: srcWH,
+		TargetWarehouseID: destWH,
+		Quantity:          cmd.Quantity,
+		SourceBalance:     newSourceBal,
+		TargetBalance:     newDestBal,
+		OutMovement:       outMovement,
+		InMovement:        inMovement,
+	}, nil
 }
 
 func (s *StockService) GetStock(ctx context.Context, tenantID, sku, warehouseID string) (*domain.StockLevel, error) {

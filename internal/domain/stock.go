@@ -12,12 +12,15 @@ var (
 	ErrInvalidQuantity   = errors.New("quantity must be greater than zero")
 	ErrInsufficientStock = errors.New("insufficient stock for fulfillment")
 	ErrStockNotFound     = errors.New("stock level not found")
+	ErrSameWarehouse     = errors.New("source and target warehouses cannot be the same")
 )
 
 const (
-	MovementTypeIn     = "IN"
-	MovementTypeOut    = "OUT"
-	MovementTypeAdjust = "ADJUST"
+	MovementTypeIn          = "IN"
+	MovementTypeOut         = "OUT"
+	MovementTypeAdjust      = "ADJUST"
+	MovementTypeTransferOut = "TRANSFER_OUT"
+	MovementTypeTransferIn  = "TRANSFER_IN"
 )
 
 type StockLevel struct {
@@ -89,4 +92,16 @@ func NewStockMovement(params NewStockMovementParams) (*StockMovement, error) {
 		Notes:        strings.TrimSpace(params.Notes),
 		CreatedAt:    time.Now().UTC(),
 	}, nil
+}
+
+type StockTransferResult struct {
+	ItemID            string
+	TenantID          string
+	SourceWarehouseID string
+	TargetWarehouseID string
+	Quantity          int
+	SourceBalance     int
+	TargetBalance     int
+	OutMovement       *StockMovement
+	InMovement        *StockMovement
 }

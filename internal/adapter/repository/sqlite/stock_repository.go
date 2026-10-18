@@ -124,6 +124,101 @@ func (r *StockRepository) RecordMovement(ctx context.Context, movement *domain.S
 	return nil
 }
 
+func (r *StockRepository) RecordTransfer(ctx context.Context, outMovement, inMovement *domain.StockMovement, newSourceBal, newTargetBal int) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	insertMovement := `
+		INSERT INTO stock_movements (
+			id, tenant_id, item_id, warehouse_id, movement_type, quantity, balance_after, reference, notes, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	_, err = tx.ExecContext(
+		ctx,
+		insertMovement,
+		outMovement.ID,
+		outMovement.TenantID,
+		outMovement.ItemID,
+		outMovement.WarehouseID,
+		outMovement.MovementType,
+		outMovement.Quantity,
+		outMovement.BalanceAfter,
+		outMovement.Reference,
+		outMovement.Notes,
+		outMovement.CreatedAt.Format(time.RFC3339Nano),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert transfer out movement: %w", err)
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		insertMovement,
+		inMovement.ID,
+		inMovement.TenantID,
+		inMovement.ItemID,
+		inMovement.WarehouseID,
+		inMovement.MovementType,
+		inMovement.Quantity,
+		inMovement.BalanceAfter,
+		inMovement.Reference,
+		inMovement.Notes,
+		inMovement.CreatedAt.Format(time.RFC3339Nano),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert transfer in movement: %w", err)
+	}
+
+	nowStr := time.Now().UTC().Format(time.RFC3339Nano)
+	upsertStock := `
+		INSERT INTO stock_levels (id, tenant_id, item_id, warehouse_id, quantity, reserved_quantity, updated_at)
+		VALUES (?, ?, ?, ?, ?, 0, ?)
+		ON CONFLICT(tenant_id, item_id, warehouse_id) DO UPDATE SET
+			quantity = excluded.quantity,
+			updated_at = excluded.updated_at
+	`
+
+	_, err = tx.ExecContext(
+		ctx,
+		upsertStock,
+		uuid.NewString(),
+		outMovement.TenantID,
+		outMovement.ItemID,
+		outMovement.WarehouseID,
+		newSourceBal,
+		nowStr,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to upsert source stock level: %w", err)
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		upsertStock,
+		uuid.NewString(),
+		inMovement.TenantID,
+		inMovement.ItemID,
+		inMovement.WarehouseID,
+		newTargetBal,
+		nowStr,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to upsert target stock level: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transfer transaction: %w", err)
+	}
+
+	return nil
+}
+
 func (r *StockRepository) ListMovements(ctx context.Context, tenantID, itemID string) ([]*domain.StockMovement, error) {
 	query := `
 		SELECT id, tenant_id, item_id, warehouse_id, movement_type, quantity, balance_after, reference, notes, created_at
