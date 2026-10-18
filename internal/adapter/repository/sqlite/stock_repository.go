@@ -61,6 +61,10 @@ func (r *StockRepository) GetStock(ctx context.Context, tenantID, itemID, wareho
 }
 
 func (r *StockRepository) RecordMovement(ctx context.Context, movement *domain.StockMovement, newBalance int) error {
+	return r.RecordMovementWithCostLayer(ctx, movement, newBalance, nil)
+}
+
+func (r *StockRepository) RecordMovementWithCostLayer(ctx context.Context, movement *domain.StockMovement, newBalance int, costLayer *domain.CostLayer) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -115,6 +119,30 @@ func (r *StockRepository) RecordMovement(ctx context.Context, movement *domain.S
 	)
 	if err != nil {
 		return fmt.Errorf("failed to upsert stock level: %w", err)
+	}
+
+	// 3. Optional insert cost layer
+	if costLayer != nil {
+		insertCostLayer := `
+			INSERT INTO stock_cost_layers (
+				id, tenant_id, item_id, warehouse_id, quantity, remaining_quantity, unit_cost, created_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`
+		_, err = tx.ExecContext(
+			ctx,
+			insertCostLayer,
+			costLayer.ID,
+			costLayer.TenantID,
+			costLayer.ItemID,
+			costLayer.WarehouseID,
+			costLayer.Quantity,
+			costLayer.RemainingQuantity,
+			costLayer.UnitCost,
+			costLayer.CreatedAt.Format(time.RFC3339Nano),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to insert cost layer: %w", err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

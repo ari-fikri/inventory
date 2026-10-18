@@ -20,10 +20,11 @@ func NewStockHandler(stockService port.StockService) *StockHandler {
 }
 
 type StockInRequest struct {
-	Quantity    int    `json:"quantity"`
-	WarehouseID string `json:"warehouse_id"`
-	Reference   string `json:"reference"`
-	Notes       string `json:"notes"`
+	Quantity    int     `json:"quantity"`
+	UnitCost    float64 `json:"unit_cost"`
+	WarehouseID string  `json:"warehouse_id"`
+	Reference   string  `json:"reference"`
+	Notes       string  `json:"notes"`
 }
 
 type StockInResponse struct {
@@ -82,6 +83,7 @@ func (h *StockHandler) StockIn(w http.ResponseWriter, r *http.Request) {
 		SKU:         sku,
 		WarehouseID: req.WarehouseID,
 		Quantity:    req.Quantity,
+		UnitCost:    req.UnitCost,
 		Reference:   req.Reference,
 		Notes:       req.Notes,
 	}

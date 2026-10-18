@@ -67,7 +67,12 @@ func (s *StockService) StockIn(ctx context.Context, cmd port.StockInCommand) (*d
 		return nil, nil, err
 	}
 
-	if err := s.stockRepo.RecordMovement(ctx, movement, newBalance); err != nil {
+	var costLayer *domain.CostLayer
+	if cmd.UnitCost > 0 {
+		costLayer = domain.NewCostLayer(cmd.TenantID, item.ID, wh, cmd.Quantity, cmd.UnitCost)
+	}
+
+	if err := s.stockRepo.RecordMovementWithCostLayer(ctx, movement, newBalance, costLayer); err != nil {
 		return nil, nil, err
 	}
 

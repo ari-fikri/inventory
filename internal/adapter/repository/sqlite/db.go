@@ -51,6 +51,25 @@ CREATE TABLE IF NOT EXISTS stock_movements (
 );
 
 CREATE INDEX IF NOT EXISTS idx_stock_movements_tenant ON stock_movements(tenant_id, item_id, warehouse_id);
+
+CREATE TABLE IF NOT EXISTS stock_cost_layers (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    warehouse_id TEXT NOT NULL DEFAULT 'default',
+    quantity INTEGER NOT NULL,
+    remaining_quantity INTEGER NOT NULL,
+    unit_cost REAL NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_cost_layers_lookup ON stock_cost_layers(tenant_id, item_id, warehouse_id, remaining_quantity);
+
+CREATE TABLE IF NOT EXISTS tenant_settings (
+    tenant_id TEXT PRIMARY KEY,
+    valuation_method TEXT NOT NULL DEFAULT 'FIFO',
+    updated_at TEXT NOT NULL
+);
 `
 
 func OpenDB(dataSourceName string) (*sql.DB, error) {

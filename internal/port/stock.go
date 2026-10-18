@@ -11,6 +11,7 @@ type StockInCommand struct {
 	SKU         string
 	WarehouseID string
 	Quantity    int
+	UnitCost    float64
 	Reference   string
 	Notes       string
 }
@@ -46,6 +47,7 @@ type StockTransferCommand struct {
 type StockRepository interface {
 	GetStock(ctx context.Context, tenantID, itemID, warehouseID string) (*domain.StockLevel, error)
 	RecordMovement(ctx context.Context, movement *domain.StockMovement, newBalance int) error
+	RecordMovementWithCostLayer(ctx context.Context, movement *domain.StockMovement, newBalance int, costLayer *domain.CostLayer) error
 	RecordTransfer(ctx context.Context, outMovement, inMovement *domain.StockMovement, newSourceBal, newTargetBal int) error
 	ListMovements(ctx context.Context, tenantID, itemID string) ([]*domain.StockMovement, error)
 }
