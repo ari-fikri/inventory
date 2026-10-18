@@ -10,3 +10,13 @@ Feature: Stock Movement and Ledger Management
     Then the response status code should be 200
     And the current stock for item with SKU "STOCK-ITEM-01" should be 50
     And a stock movement record of type "IN" with quantity 50 should be logged
+
+  Scenario: Adjust stock following a physical audit count (Stock ADJUST)
+    Given I am authenticated as tenant "tenant-alpha"
+    And an item exists with SKU "AUDIT-ITEM-01" and name "Headset"
+    And I add 50 units of stock to item with SKU "AUDIT-ITEM-01" with reference "PO-INITIAL" and note "Initial stock"
+    When I adjust stock for item with SKU "AUDIT-ITEM-01" to target quantity 42 with reference "AUDIT-Q1" and note "Physical count: 8 units damaged"
+    Then the response status code should be 200
+    And the current stock for item with SKU "AUDIT-ITEM-01" should be 42
+    And a stock movement record of type "ADJUST" with quantity 8 should be logged
+
