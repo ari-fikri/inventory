@@ -7,18 +7,16 @@ import (
 )
 
 type RouterConfig struct {
-	// Future handlers will be injected here
+	ItemHandler *ItemHandler
 }
 
 func NewRouter(cfg RouterConfig) http.Handler {
 	mux := http.NewServeMux()
 
-	// Base items endpoint placeholder
-	mux.HandleFunc("GET /api/v1/items", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`[]`))
-	})
+	if cfg.ItemHandler != nil {
+		mux.HandleFunc("POST /api/v1/items", cfg.ItemHandler.Create)
+		mux.HandleFunc("GET /api/v1/items", cfg.ItemHandler.List)
+	}
 
 	// Wrap entire API with TenantMiddleware
 	return middleware.TenantMiddleware(mux)
