@@ -3,6 +3,7 @@ package steps
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/cucumber/godog"
 )
@@ -100,6 +101,50 @@ func RegisterStockSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 		}
 		if latest.Quantity != expectedQty {
 			return fmt.Errorf("expected latest movement quantity %d, got %d", expectedQty, latest.Quantity)
+		}
+
+		return nil
+	})
+
+	sc.Step(`^I query stock movements for item with SKU "([^"]*)"$`, func(sku string) error {
+		ctx.LastSKU = sku
+		return ctx.SendRequest("GET", "/api/v1/items/sku/"+sku+"/movements", ctx.CurrentTenantID, nil)
+	})
+
+	sc.Step(`^the stock movements history should contain (\d+) entries in reverse chronological order:$`, func(expectedCount int, table *godog.Table) error {
+		var movements []StockMovementResponse
+		if err := json.Unmarshal(ctx.LastBody, &movements); err != nil {
+			return fmt.Errorf("failed to unmarshal movements: %w, body: %s", err, string(ctx.LastBody))
+		}
+
+		if len(movements) != expectedCount {
+			return fmt.Errorf("expected %d movements, got %d with body: %s", expectedCount, len(movements), string(ctx.LastBody))
+		}
+
+		dataRows := table.Rows[1:]
+		if len(dataRows) != len(movements) {
+			return fmt.Errorf("table row count %d does not match movements count %d", len(dataRows), len(movements))
+		}
+
+		for i, row := range dataRows {
+			expectedType := row.Cells[0].Value
+			expectedQty, _ := strconv.Atoi(row.Cells[1].Value)
+			expectedBalance, _ := strconv.Atoi(row.Cells[2].Value)
+			expectedRef := row.Cells[3].Value
+
+			actual := movements[i]
+			if actual.MovementType != expectedType {
+				return fmt.Errorf("entry %d: expected movement_type %q, got %q", i, expectedType, actual.MovementType)
+			}
+			if actual.Quantity != expectedQty {
+				return fmt.Errorf("entry %d: expected quantity %d, got %d", i, expectedQty, actual.Quantity)
+			}
+			if actual.BalanceAfter != expectedBalance {
+				return fmt.Errorf("entry %d: expected balance_after %d, got %d", i, expectedBalance, actual.BalanceAfter)
+			}
+			if actual.Reference != expectedRef {
+				return fmt.Errorf("entry %d: expected reference %q, got %q", i, expectedRef, actual.Reference)
+			}
 		}
 
 		return nil

@@ -123,7 +123,7 @@ func (r *StockRepository) ListMovements(ctx context.Context, tenantID, itemID st
 		SELECT id, tenant_id, item_id, movement_type, quantity, balance_after, reference, notes, created_at
 		FROM stock_movements
 		WHERE tenant_id = ? AND item_id = ?
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, rowid DESC
 	`
 	rows, err := r.db.QueryContext(ctx, query, tenantID, itemID)
 	if err != nil {
