@@ -240,7 +240,7 @@ func (s *StockService) StockTransfer(ctx context.Context, cmd port.StockTransfer
 	}
 
 	if srcQty < cmd.Quantity {
-		return nil, domain.ErrInsufficientStock
+		return nil, domain.ErrInsufficientTransferStock
 	}
 
 	destStock, err := s.stockRepo.GetStock(ctx, cmd.TenantID, item.ID, destWH)

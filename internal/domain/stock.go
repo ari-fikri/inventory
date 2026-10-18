@@ -9,10 +9,11 @@ import (
 )
 
 var (
-	ErrInvalidQuantity   = errors.New("quantity must be greater than zero")
-	ErrInsufficientStock = errors.New("insufficient stock for fulfillment")
-	ErrStockNotFound     = errors.New("stock level not found")
-	ErrSameWarehouse     = errors.New("source and target warehouses cannot be the same")
+	ErrInvalidQuantity           = errors.New("quantity must be greater than zero")
+	ErrInsufficientStock         = errors.New("insufficient stock for fulfillment")
+	ErrInsufficientTransferStock = errors.New("insufficient stock for transfer in source warehouse")
+	ErrStockNotFound             = errors.New("stock level not found")
+	ErrSameWarehouse             = errors.New("source and target warehouses cannot be the same")
 )
 
 const (

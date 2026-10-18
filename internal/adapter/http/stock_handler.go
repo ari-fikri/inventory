@@ -294,7 +294,7 @@ func (h *StockHandler) StockTransfer(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusNotFound, middleware.ErrorResponse{Error: "item not found"})
 		case errors.Is(err, domain.ErrItemInactive):
 			writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: err.Error()})
-		case errors.Is(err, domain.ErrInsufficientStock):
+		case errors.Is(err, domain.ErrInsufficientStock), errors.Is(err, domain.ErrInsufficientTransferStock):
 			writeJSON(w, http.StatusUnprocessableEntity, middleware.ErrorResponse{Error: err.Error()})
 		case errors.Is(err, domain.ErrInvalidQuantity), errors.Is(err, domain.ErrSameWarehouse):
 			writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: err.Error()})
