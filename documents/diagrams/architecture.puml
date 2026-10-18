@@ -16,6 +16,7 @@ package "Primary / Driving Adapters (Inbound)" {
         [Tenant Middleware] as TenantMW
         [Item Handler] as ItemHandler
         [Stock Handler] as StockHandler
+        [Valuation Handler] as ValuationHandler
     }
 }
 
@@ -23,14 +24,17 @@ package "Core Domain & Application Ports" {
     package "Ports" {
         interface "ItemService" as IItemService
         interface "StockService" as IStockService
+        interface "ValuationService" as IValuationService
         interface "ItemRepository" as IItemRepo
         interface "StockRepository" as IStockRepo
+        interface "ValuationRepository" as IValuationRepo
     }
 
     package "Domain Logic & Models" {
         [Item Domain Entity] as ItemEntity
         [Stock Movement Entity] as StockEntity
-        [Inventory Invariants & Rules] as DomainRules
+        [Cost Layer & Valuation Models] as ValuationEntity
+        [Inventory & FIFO Invariants] as DomainRules
     }
 }
 
@@ -38,6 +42,7 @@ package "Secondary / Driven Adapters (Outbound)" {
     package "Persistence Layer" {
         [SQLite Item Repository] as SqliteItemRepo
         [SQLite Stock Repository] as SqliteStockRepo
+        [SQLite Valuation Repository] as SqliteValuationRepo
     }
 }
 
@@ -49,22 +54,29 @@ Godog --> TenantMW : Test HTTP Execution
 
 TenantMW --> ItemHandler : Scoped Context
 TenantMW --> StockHandler : Scoped Context
+TenantMW --> ValuationHandler : Scoped Context
 
 ItemHandler --> IItemService
 StockHandler --> IStockService
+ValuationHandler --> IValuationService
 
 IItemService ..> ItemEntity
 IStockService ..> StockEntity
+IValuationService ..> ValuationEntity
 ItemEntity ..> DomainRules
 StockEntity ..> DomainRules
+ValuationEntity ..> DomainRules
 
 IItemService --> IItemRepo
 IStockService --> IStockRepo
+IValuationService --> IValuationRepo
 
 SqliteItemRepo .up.|> IItemRepo
 SqliteStockRepo .up.|> IStockRepo
+SqliteValuationRepo .up.|> IValuationRepo
 
 SqliteItemRepo --> SQLite : SQL with tenant_id filter
 SqliteStockRepo --> SQLite : SQL with tenant_id filter
+SqliteValuationRepo --> SQLite : SQL with tenant_id filter
 
 @enduml

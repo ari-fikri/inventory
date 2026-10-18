@@ -112,4 +112,78 @@ Handler --> Client : 200 OK\n{"source_warehouse_id": "WH-A", "target_warehouse_i
 deactivate Handler
 deactivate MW
 
+== Restock with Unit Cost & FIFO Cost Layer Creation ==
+Client -> MW : POST /api/v1/items/sku/{sku}/stock/in\nHeader: X-Tenant-ID: "tenant-acme"\nBody: {"quantity": 10, "unit_cost": 15.50}
+activate MW
+MW -> Handler : ctx = WithTenantID(ctx, "tenant-acme")
+activate Handler
+Handler -> Service : StockIn(ctx, cmd)
+activate Service
+Service -> Service : Create domain.CostLayer(qty: 10, cost: 15.50)
+Service -> Repo : RecordMovementWithCostLayer(ctx, mv, bal, costLayer)
+activate Repo
+Repo -> DB : BEGIN TRANSACTION
+Repo -> DB : INSERT INTO stock_movements (IN, qty: 10)
+Repo -> DB : UPDATE stock_levels (qty: +10)
+Repo -> DB : INSERT INTO stock_cost_layers (rem_qty: 10, unit_cost: 15.50)
+Repo -> DB : COMMIT
+DB --> Repo : OK
+Repo --> Service : nil (Success)
+deactivate Repo
+Service --> Handler : StockMovement, StockLevel, nil
+deactivate Service
+Handler --> Client : 200 OK
+deactivate Handler
+deactivate MW
+
+== Stock Out with FIFO Cost Layer Consumption & COGS ==
+Client -> MW : POST /api/v1/items/sku/{sku}/stock/out\nHeader: X-Tenant-ID: "tenant-acme"\nBody: {"quantity": 15}
+activate MW
+MW -> Handler : ctx = WithTenantID(ctx, "tenant-acme")
+activate Handler
+Handler -> Service : StockOut(ctx, cmd)
+activate Service
+Service -> Repo : GetActiveCostLayers(ctx, tenantID, itemID, wh)
+activate Repo
+Repo -> DB : SELECT * FROM stock_cost_layers WHERE remaining_quantity > 0 ORDER BY rowid ASC
+DB --> Repo : Layer 1 (rem: 10 @ $10), Layer 2 (rem: 10 @ $20)
+Repo --> Service : CostLayers
+deactivate Repo
+Service -> Service : Consume Layer 1 (take: 10, cogs: $100)\nConsume Layer 2 (take: 5, cogs: $100)\nTotal COGS = $200
+Service -> Repo : RecordStockOutWithValuation(ctx, mv, bal, consumed)
+activate Repo
+Repo -> DB : BEGIN TRANSACTION
+Repo -> DB : INSERT INTO stock_movements (OUT, qty: 15, total_cogs: 200.0)
+Repo -> DB : UPDATE stock_levels (qty: -15)
+Repo -> DB : UPDATE stock_cost_layers SET remaining_quantity = 0 (Layer 1)
+Repo -> DB : UPDATE stock_cost_layers SET remaining_quantity = 5 (Layer 2)
+Repo -> DB : COMMIT
+DB --> Repo : OK
+Repo --> Service : nil (Success)
+deactivate Repo
+Service --> Handler : StockMovement, StockLevel, nil
+deactivate Service
+Handler --> Client : 200 OK\n{"quantity": 15, "total_cogs": 200.00}
+deactivate Handler
+deactivate MW
+
+== Valuation Method Change Guard (Stock > 0 Restriction) ==
+Client -> MW : PUT /api/v1/valuation/settings\nHeader: X-Tenant-ID: "tenant-acme"\nBody: {"valuation_method": "AVCO"}
+activate MW
+MW -> Handler : ctx = WithTenantID(ctx, "tenant-acme")
+activate Handler
+Handler -> Service : SetTenantValuationMethod(ctx, tenantID, "AVCO")
+activate Service
+Service -> Repo : GetTenantTotalStock(ctx, tenantID)
+activate Repo
+Repo -> DB : SELECT COALESCE(SUM(quantity), 0) FROM stock_levels WHERE tenant_id = ?
+DB --> Repo : total_stock = 15
+Repo --> Service : 15
+deactivate Repo
+Service --> Handler : ErrCannotChangeValuation
+deactivate Service
+Handler --> Client : 400 Bad Request\n{"error": "cannot change valuation method when stock is greater than zero"}
+deactivate Handler
+deactivate MW
+
 @enduml
