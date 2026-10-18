@@ -9,16 +9,18 @@ import (
 )
 
 type StockLevelResponse struct {
-	ItemID    string `json:"item_id"`
-	TenantID  string `json:"tenant_id"`
-	Quantity  int    `json:"quantity"`
-	UpdatedAt string `json:"updated_at"`
+	ItemID      string `json:"item_id"`
+	TenantID    string `json:"tenant_id"`
+	WarehouseID string `json:"warehouse_id"`
+	Quantity    int    `json:"quantity"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 type StockMovementResponse struct {
 	ID           string `json:"id"`
 	TenantID     string `json:"tenant_id"`
 	ItemID       string `json:"item_id"`
+	WarehouseID  string `json:"warehouse_id"`
 	MovementType string `json:"movement_type"`
 	Quantity     int    `json:"quantity"`
 	BalanceAfter int    `json:"balance_after"`
@@ -34,6 +36,17 @@ func RegisterStockSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 			"quantity":  qty,
 			"reference": ref,
 			"notes":     note,
+		}
+		return ctx.SendRequest("POST", "/api/v1/items/sku/"+sku+"/stock/in", ctx.CurrentTenantID, payload)
+	})
+
+	sc.Step(`^I add (\d+) units of stock to item with SKU "([^"]*)" in warehouse "([^"]*)" with reference "([^"]*)" and note "([^"]*)"$`, func(qty int, sku, warehouseID, ref, note string) error {
+		ctx.LastSKU = sku
+		payload := map[string]any{
+			"quantity":     qty,
+			"warehouse_id": warehouseID,
+			"reference":    ref,
+			"notes":        note,
 		}
 		return ctx.SendRequest("POST", "/api/v1/items/sku/"+sku+"/stock/in", ctx.CurrentTenantID, payload)
 	})
@@ -73,6 +86,25 @@ func RegisterStockSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 
 		if stock.Quantity != expectedQty {
 			return fmt.Errorf("expected stock quantity %d, got %d", expectedQty, stock.Quantity)
+		}
+		return nil
+	})
+
+	sc.Step(`^the stock for item with SKU "([^"]*)" in warehouse "([^"]*)" should be (\d+)$`, func(sku, warehouseID string, expectedQty int) error {
+		if err := ctx.SendRequest("GET", "/api/v1/items/sku/"+sku+"/stock?warehouse_id="+warehouseID, ctx.CurrentTenantID, nil); err != nil {
+			return err
+		}
+		if ctx.LastResponse.StatusCode != 200 {
+			return fmt.Errorf("expected 200 OK fetching stock for warehouse %s, got %d with body: %s", warehouseID, ctx.LastResponse.StatusCode, string(ctx.LastBody))
+		}
+
+		var stock StockLevelResponse
+		if err := json.Unmarshal(ctx.LastBody, &stock); err != nil {
+			return fmt.Errorf("failed to unmarshal stock level: %w", err)
+		}
+
+		if stock.Quantity != expectedQty {
+			return fmt.Errorf("expected stock quantity %d in warehouse %s, got %d", expectedQty, warehouseID, stock.Quantity)
 		}
 		return nil
 	})
