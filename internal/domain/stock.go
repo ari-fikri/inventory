@@ -59,7 +59,10 @@ func NewStockMovement(params NewStockMovementParams) (*StockMovement, error) {
 	if strings.TrimSpace(params.ItemID) == "" {
 		return nil, errors.New("item ID cannot be empty")
 	}
-	if params.Quantity <= 0 {
+	if params.Quantity <= 0 && params.MovementType != MovementTypeAdjust {
+		return nil, ErrInvalidQuantity
+	}
+	if params.Quantity < 0 {
 		return nil, ErrInvalidQuantity
 	}
 	if params.BalanceAfter < 0 {

@@ -107,6 +107,65 @@ func (h *StockHandler) StockIn(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+type StockAdjustRequest struct {
+	TargetQuantity int    `json:"target_quantity"`
+	Reference      string `json:"reference"`
+	Notes          string `json:"notes"`
+}
+
+func (h *StockHandler) StockAdjust(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := middleware.GetTenantID(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "X-Tenant-ID header is required"})
+		return
+	}
+
+	sku := r.PathValue("sku")
+	if sku == "" {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "SKU parameter is required"})
+		return
+	}
+
+	var req StockAdjustRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "invalid request body: " + err.Error()})
+		return
+	}
+
+	cmd := port.StockAdjustCommand{
+		TenantID:       tenantID,
+		SKU:            sku,
+		TargetQuantity: req.TargetQuantity,
+		Reference:      req.Reference,
+		Notes:          req.Notes,
+	}
+
+	movement, stockLevel, err := h.stockService.StockAdjust(r.Context(), cmd)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrItemNotFound):
+			writeJSON(w, http.StatusNotFound, middleware.ErrorResponse{Error: "item not found"})
+		case errors.Is(err, domain.ErrInvalidQuantity):
+			writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: err.Error()})
+		default:
+			writeJSON(w, http.StatusInternalServerError, middleware.ErrorResponse{Error: "failed to process stock adjust"})
+		}
+		return
+	}
+
+	resp := StockInResponse{
+		ItemID:       stockLevel.ItemID,
+		TenantID:     stockLevel.TenantID,
+		Quantity:     stockLevel.Quantity,
+		MovementType: movement.MovementType,
+		MovementID:   movement.ID,
+		Reference:    movement.Reference,
+		Notes:        movement.Notes,
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
 func (h *StockHandler) GetStock(w http.ResponseWriter, r *http.Request) {
 	tenantID, ok := middleware.GetTenantID(r.Context())
 	if !ok {
