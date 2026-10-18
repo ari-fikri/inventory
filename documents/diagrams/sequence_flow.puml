@@ -6,9 +6,9 @@ title Request Execution Flow & Tenant Context
 
 actor "Client / Postman / Godog" as Client
 participant "TenantMiddleware" as MW
-participant "ItemHandler" as Handler
-participant "ItemService" as Service
-participant "SQLiteItemRepo" as Repo
+participant "ItemHandler / StockHandler" as Handler
+participant "ItemService / StockService" as Service
+participant "SQLite Repo" as Repo
 database "SQLite DB" as DB
 
 == Request without Tenant ID ==
@@ -73,6 +73,42 @@ deactivate Repo
 Service --> Handler : updatedItem, nil
 deactivate Service
 Handler --> Client : 200 OK\n{"sku": "SKU-001", "name": "Pro Hammer", ...}
+deactivate Handler
+deactivate MW
+
+== Inter-Warehouse Stock Transfer ==
+Client -> MW : POST /api/v1/items/sku/{sku}/stock/transfer\nHeader: X-Tenant-ID: "tenant-acme"\nBody: {"source_warehouse_id": "WH-A", "target_warehouse_id": "WH-B", "quantity": 10}
+activate MW
+MW -> Handler : ctx = WithTenantID(ctx, "tenant-acme")
+activate Handler
+Handler -> Service : StockTransfer(ctx, cmd)
+activate Service
+Service -> Repo : GetBySKU(ctx, tenantID, sku)
+activate Repo
+Repo -> DB : SELECT * FROM items WHERE tenant_id = ? AND sku = ?
+DB --> Repo : item (Active)
+Repo --> Service : item
+deactivate Repo
+Service -> Repo : GetStock(ctx, tenantID, itemID, "WH-A")
+activate Repo
+Repo -> DB : SELECT quantity FROM stock_levels WHERE ...
+DB --> Repo : quantity = 50
+Repo --> Service : stock (Quantity >= 10)
+deactivate Repo
+Service -> Repo : RecordTransfer(ctx, outMv, inMv, newSrcBal, newDestBal)
+activate Repo
+Repo -> DB : BEGIN TRANSACTION
+Repo -> DB : INSERT stock_movements (TRANSFER_OUT)
+Repo -> DB : INSERT stock_movements (TRANSFER_IN)
+Repo -> DB : UPDATE stock_levels (WH-A balance = 40)
+Repo -> DB : UPDATE stock_levels (WH-B balance = 10)
+Repo -> DB : COMMIT
+DB --> Repo : OK
+Repo --> Service : nil (Success)
+deactivate Repo
+Service --> Handler : StockTransferResult, nil
+deactivate Service
+Handler --> Client : 200 OK\n{"source_warehouse_id": "WH-A", "target_warehouse_id": "WH-B", "quantity": 10, ...}
 deactivate Handler
 deactivate MW
 
