@@ -17,3 +17,16 @@ Feature: Item Catalog Management
       | name      | Ergonomic Keyboard |
       | tenant_id | tenant-alpha       |
       | is_active | true               |
+
+  Scenario: Prevent duplicate SKU within the same tenant
+    Given I am authenticated as tenant "tenant-alpha"
+    And an item exists with SKU "KEY-DUPLICATE" and name "Original Keyboard"
+    When I create an item with the following details:
+      | sku           | KEY-DUPLICATE       |
+      | name          | Another Keyboard    |
+      | description   | Another description |
+      | unit_price    | 49.99               |
+      | min_threshold | 2                   |
+    Then the response status code should be 409
+    And the response should contain error "item with this SKU already exists for this tenant"
+
