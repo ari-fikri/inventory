@@ -120,6 +120,33 @@ func (s *StockService) StockOut(ctx context.Context, cmd port.StockOutCommand) (
 
 	newBalance := currentQty - cmd.Quantity
 
+	// Consume cost layers for FIFO COGS
+	activeLayers, err := s.stockRepo.GetActiveCostLayers(ctx, cmd.TenantID, item.ID, wh)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	remainingToFulfill := cmd.Quantity
+	totalCOGS := 0.0
+	var consumed []domain.ConsumedCostLayer
+
+	for _, layer := range activeLayers {
+		if remainingToFulfill <= 0 {
+			break
+		}
+		take := remainingToFulfill
+		if take > layer.RemainingQuantity {
+			take = layer.RemainingQuantity
+		}
+		totalCOGS += float64(take) * layer.UnitCost
+		consumed = append(consumed, domain.ConsumedCostLayer{
+			LayerID:      layer.ID,
+			ConsumedQty:  take,
+			RemainingQty: layer.RemainingQuantity - take,
+		})
+		remainingToFulfill -= take
+	}
+
 	movement, err := domain.NewStockMovement(domain.NewStockMovementParams{
 		TenantID:     cmd.TenantID,
 		ItemID:       item.ID,
@@ -127,6 +154,7 @@ func (s *StockService) StockOut(ctx context.Context, cmd port.StockOutCommand) (
 		MovementType: domain.MovementTypeOut,
 		Quantity:     cmd.Quantity,
 		BalanceAfter: newBalance,
+		TotalCOGS:    totalCOGS,
 		Reference:    cmd.Reference,
 		Notes:        cmd.Notes,
 	})
@@ -134,7 +162,7 @@ func (s *StockService) StockOut(ctx context.Context, cmd port.StockOutCommand) (
 		return nil, nil, err
 	}
 
-	if err := s.stockRepo.RecordMovement(ctx, movement, newBalance); err != nil {
+	if err := s.stockRepo.RecordStockOutWithValuation(ctx, movement, newBalance, consumed); err != nil {
 		return nil, nil, err
 	}
 

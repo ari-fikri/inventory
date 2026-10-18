@@ -162,18 +162,31 @@ func (h *StockHandler) StockOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := StockInResponse{
+	resp := StockOutResponse{
 		ItemID:       stockLevel.ItemID,
 		TenantID:     stockLevel.TenantID,
 		WarehouseID:  stockLevel.WarehouseID,
 		Quantity:     stockLevel.Quantity,
 		MovementType: movement.MovementType,
 		MovementID:   movement.ID,
+		TotalCOGS:    movement.TotalCOGS,
 		Reference:    movement.Reference,
 		Notes:        movement.Notes,
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+type StockOutResponse struct {
+	ItemID       string  `json:"item_id"`
+	TenantID     string  `json:"tenant_id"`
+	WarehouseID  string  `json:"warehouse_id"`
+	Quantity     int     `json:"quantity"`
+	MovementType string  `json:"movement_type"`
+	MovementID   string  `json:"movement_id"`
+	TotalCOGS    float64 `json:"total_cogs"`
+	Reference    string  `json:"reference"`
+	Notes        string  `json:"notes"`
 }
 
 type StockAdjustRequest struct {

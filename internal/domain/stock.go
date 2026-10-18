@@ -42,6 +42,7 @@ type StockMovement struct {
 	MovementType string
 	Quantity     int
 	BalanceAfter int
+	TotalCOGS    float64
 	Reference    string
 	Notes        string
 	CreatedAt    time.Time
@@ -54,6 +55,7 @@ type NewStockMovementParams struct {
 	MovementType string
 	Quantity     int
 	BalanceAfter int
+	TotalCOGS    float64
 	Reference    string
 	Notes        string
 }
@@ -89,6 +91,7 @@ func NewStockMovement(params NewStockMovementParams) (*StockMovement, error) {
 		MovementType: params.MovementType,
 		Quantity:     params.Quantity,
 		BalanceAfter: params.BalanceAfter,
+		TotalCOGS:    params.TotalCOGS,
 		Reference:    strings.TrimSpace(params.Reference),
 		Notes:        strings.TrimSpace(params.Notes),
 		CreatedAt:    time.Now().UTC(),

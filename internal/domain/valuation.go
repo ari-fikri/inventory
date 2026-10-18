@@ -54,3 +54,10 @@ type ItemValuation struct {
 	AverageUnitCost float64     `json:"average_unit_cost"`
 	CostLayers      []CostLayer `json:"cost_layers"`
 }
+
+type ConsumedCostLayer struct {
+	LayerID      string  `json:"layer_id"`
+	ConsumedQty  int     `json:"consumed_qty"`
+	RemainingQty int     `json:"remaining_qty"`
+	UnitCost     float64 `json:"unit_cost"`
+}

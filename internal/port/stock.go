@@ -48,6 +48,8 @@ type StockRepository interface {
 	GetStock(ctx context.Context, tenantID, itemID, warehouseID string) (*domain.StockLevel, error)
 	RecordMovement(ctx context.Context, movement *domain.StockMovement, newBalance int) error
 	RecordMovementWithCostLayer(ctx context.Context, movement *domain.StockMovement, newBalance int, costLayer *domain.CostLayer) error
+	GetActiveCostLayers(ctx context.Context, tenantID, itemID, warehouseID string) ([]domain.CostLayer, error)
+	RecordStockOutWithValuation(ctx context.Context, movement *domain.StockMovement, newBalance int, consumed []domain.ConsumedCostLayer) error
 	RecordTransfer(ctx context.Context, outMovement, inMovement *domain.StockMovement, newSourceBal, newTargetBal int) error
 	ListMovements(ctx context.Context, tenantID, itemID string) ([]*domain.StockMovement, error)
 }

@@ -76,8 +76,8 @@ func (r *StockRepository) RecordMovementWithCostLayer(ctx context.Context, movem
 	// 1. Insert stock movement audit log
 	insertMovement := `
 		INSERT INTO stock_movements (
-			id, tenant_id, item_id, warehouse_id, movement_type, quantity, balance_after, reference, notes, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			id, tenant_id, item_id, warehouse_id, movement_type, quantity, balance_after, total_cogs, reference, notes, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err = tx.ExecContext(
 		ctx,
@@ -89,6 +89,7 @@ func (r *StockRepository) RecordMovementWithCostLayer(ctx context.Context, movem
 		movement.MovementType,
 		movement.Quantity,
 		movement.BalanceAfter,
+		movement.TotalCOGS,
 		movement.Reference,
 		movement.Notes,
 		movement.CreatedAt.Format(time.RFC3339Nano),
@@ -147,6 +148,108 @@ func (r *StockRepository) RecordMovementWithCostLayer(ctx context.Context, movem
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit stock transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *StockRepository) GetActiveCostLayers(ctx context.Context, tenantID, itemID, warehouseID string) ([]domain.CostLayer, error) {
+	if warehouseID == "" {
+		warehouseID = "default"
+	}
+	query := `
+		SELECT id, tenant_id, item_id, warehouse_id, quantity, remaining_quantity, unit_cost, created_at
+		FROM stock_cost_layers
+		WHERE tenant_id = ? AND item_id = ? AND warehouse_id = ? AND remaining_quantity > 0
+		ORDER BY rowid ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, tenantID, itemID, warehouseID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query active cost layers: %w", err)
+	}
+	defer rows.Close()
+
+	var layers []domain.CostLayer
+	for rows.Next() {
+		var l domain.CostLayer
+		var createdAtStr string
+		if err := rows.Scan(&l.ID, &l.TenantID, &l.ItemID, &l.WarehouseID, &l.Quantity, &l.RemainingQuantity, &l.UnitCost, &createdAtStr); err != nil {
+			return nil, fmt.Errorf("failed to scan active cost layer: %w", err)
+		}
+		if t, err := time.Parse(time.RFC3339Nano, createdAtStr); err == nil {
+			l.CreatedAt = t
+		}
+		layers = append(layers, l)
+	}
+	return layers, rows.Err()
+}
+
+func (r *StockRepository) RecordStockOutWithValuation(ctx context.Context, movement *domain.StockMovement, newBalance int, consumed []domain.ConsumedCostLayer) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	insertMovement := `
+		INSERT INTO stock_movements (
+			id, tenant_id, item_id, warehouse_id, movement_type, quantity, balance_after, total_cogs, reference, notes, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	_, err = tx.ExecContext(
+		ctx,
+		insertMovement,
+		movement.ID,
+		movement.TenantID,
+		movement.ItemID,
+		movement.WarehouseID,
+		movement.MovementType,
+		movement.Quantity,
+		movement.BalanceAfter,
+		movement.TotalCOGS,
+		movement.Reference,
+		movement.Notes,
+		movement.CreatedAt.Format(time.RFC3339Nano),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert stock movement: %w", err)
+	}
+
+	nowStr := time.Now().UTC().Format(time.RFC3339Nano)
+	upsertStock := `
+		INSERT INTO stock_levels (id, tenant_id, item_id, warehouse_id, quantity, reserved_quantity, updated_at)
+		VALUES (?, ?, ?, ?, ?, 0, ?)
+		ON CONFLICT(tenant_id, item_id, warehouse_id) DO UPDATE SET
+			quantity = excluded.quantity,
+			updated_at = excluded.updated_at
+	`
+	stockLevelID := uuid.NewString()
+	_, err = tx.ExecContext(
+		ctx,
+		upsertStock,
+		stockLevelID,
+		movement.TenantID,
+		movement.ItemID,
+		movement.WarehouseID,
+		newBalance,
+		nowStr,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to upsert stock level: %w", err)
+	}
+
+	updateLayer := `UPDATE stock_cost_layers SET remaining_quantity = ? WHERE id = ?`
+	for _, c := range consumed {
+		_, err = tx.ExecContext(ctx, updateLayer, c.RemainingQty, c.LayerID)
+		if err != nil {
+			return fmt.Errorf("failed to update cost layer %s: %w", c.LayerID, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit stock out transaction: %w", err)
 	}
 
 	return nil

@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS stock_movements (
     movement_type TEXT NOT NULL,
     quantity INTEGER NOT NULL,
     balance_after INTEGER NOT NULL,
+    total_cogs REAL NOT NULL DEFAULT 0.0,
     reference TEXT NOT NULL,
     notes TEXT NOT NULL,
     created_at TEXT NOT NULL
