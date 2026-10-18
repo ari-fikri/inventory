@@ -9,7 +9,8 @@ import (
 type RouterConfig struct {
 	ItemHandler      *ItemHandler
 	StockHandler     *StockHandler
-	ValuationHandler *ValuationHandler
+	ValuationHandler     *ValuationHandler
+	PurchaseOrderHandler *PurchaseOrderHandler
 }
 
 func NewRouter(cfg RouterConfig) http.Handler {
@@ -38,6 +39,14 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		mux.HandleFunc("GET /api/v1/items/sku/{sku}/valuation", cfg.ValuationHandler.GetItemValuation)
 		mux.HandleFunc("GET /api/v1/valuation/settings", cfg.ValuationHandler.GetValuationSettings)
 		mux.HandleFunc("PUT /api/v1/valuation/settings", cfg.ValuationHandler.UpdateValuationSettings)
+	}
+
+	if cfg.PurchaseOrderHandler != nil {
+		mux.HandleFunc("POST /api/v1/suppliers", cfg.PurchaseOrderHandler.CreateSupplier)
+		mux.HandleFunc("GET /api/v1/suppliers", cfg.PurchaseOrderHandler.ListSuppliers)
+		mux.HandleFunc("POST /api/v1/purchase-orders", cfg.PurchaseOrderHandler.CreatePurchaseOrder)
+		mux.HandleFunc("GET /api/v1/purchase-orders/{po_number}", cfg.PurchaseOrderHandler.GetPurchaseOrder)
+		mux.HandleFunc("PATCH /api/v1/purchase-orders/{po_number}/submit", cfg.PurchaseOrderHandler.SubmitPurchaseOrder)
 	}
 
 	// Wrap entire API with TenantMiddleware

@@ -30,10 +30,16 @@ func InitializeScenario(sc *godog.ScenarioContext) {
 	valService := service.NewValuationService(itemRepo, valRepo)
 	valHandler := inventoryHttp.NewValuationHandler(valService)
 
+	supplierRepo := sqlite.NewSupplierRepository(db)
+	poRepo := sqlite.NewPurchaseOrderRepository(db)
+	poService := service.NewPurchaseOrderService(supplierRepo, poRepo, itemRepo, stockService)
+	poHandler := inventoryHttp.NewPurchaseOrderHandler(poService)
+
 	appRouter := inventoryHttp.NewRouter(inventoryHttp.RouterConfig{
-		ItemHandler:      itemHandler,
-		StockHandler:     stockHandler,
-		ValuationHandler: valHandler,
+		ItemHandler:          itemHandler,
+		StockHandler:         stockHandler,
+		ValuationHandler:     valHandler,
+		PurchaseOrderHandler: poHandler,
 	})
 
 	testCtx := steps.NewTestContext(appRouter)

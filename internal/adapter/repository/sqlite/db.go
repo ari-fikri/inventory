@@ -71,6 +71,47 @@ CREATE TABLE IF NOT EXISTS tenant_settings (
     valuation_method TEXT NOT NULL DEFAULT 'FIFO',
     updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS suppliers (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    contact_name TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(tenant_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_suppliers_tenant ON suppliers(tenant_id);
+
+CREATE TABLE IF NOT EXISTS purchase_orders (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    po_number TEXT NOT NULL,
+    supplier_id TEXT NOT NULL,
+    warehouse_id TEXT NOT NULL DEFAULT 'default',
+    status TEXT NOT NULL DEFAULT 'DRAFT',
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(tenant_id, po_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_po_tenant ON purchase_orders(tenant_id, po_number);
+
+CREATE TABLE IF NOT EXISTS purchase_order_items (
+    id TEXT PRIMARY KEY,
+    po_id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    sku TEXT NOT NULL,
+    ordered_quantity INTEGER NOT NULL,
+    received_quantity INTEGER NOT NULL DEFAULT 0,
+    unit_cost REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_po_items_po ON purchase_order_items(po_id);
 `
 
 func OpenDB(dataSourceName string) (*sql.DB, error) {
