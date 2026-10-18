@@ -32,6 +32,9 @@ func (s *StockService) StockIn(ctx context.Context, cmd port.StockInCommand) (*d
 	if err != nil {
 		return nil, nil, err
 	}
+	if !item.IsActive {
+		return nil, nil, domain.ErrItemInactive
+	}
 
 	currentStock, err := s.stockRepo.GetStock(ctx, cmd.TenantID, item.ID)
 	currentQty := 0
@@ -79,6 +82,9 @@ func (s *StockService) StockOut(ctx context.Context, cmd port.StockOutCommand) (
 	item, err := s.itemRepo.GetBySKU(ctx, cmd.TenantID, cmd.SKU)
 	if err != nil {
 		return nil, nil, err
+	}
+	if !item.IsActive {
+		return nil, nil, domain.ErrItemInactive
 	}
 
 	currentStock, err := s.stockRepo.GetStock(ctx, cmd.TenantID, item.ID)
@@ -131,6 +137,9 @@ func (s *StockService) StockAdjust(ctx context.Context, cmd port.StockAdjustComm
 	item, err := s.itemRepo.GetBySKU(ctx, cmd.TenantID, cmd.SKU)
 	if err != nil {
 		return nil, nil, err
+	}
+	if !item.IsActive {
+		return nil, nil, domain.ErrItemInactive
 	}
 
 	currentStock, err := s.stockRepo.GetStock(ctx, cmd.TenantID, item.ID)

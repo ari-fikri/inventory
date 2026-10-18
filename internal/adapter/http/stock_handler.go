@@ -86,6 +86,8 @@ func (h *StockHandler) StockIn(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, domain.ErrItemNotFound):
 			writeJSON(w, http.StatusNotFound, middleware.ErrorResponse{Error: "item not found"})
+		case errors.Is(err, domain.ErrItemInactive):
+			writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: err.Error()})
 		case errors.Is(err, domain.ErrInvalidQuantity):
 			writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: err.Error()})
 		default:
@@ -139,6 +141,8 @@ func (h *StockHandler) StockOut(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, domain.ErrItemNotFound):
 			writeJSON(w, http.StatusNotFound, middleware.ErrorResponse{Error: "item not found"})
+		case errors.Is(err, domain.ErrItemInactive):
+			writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: err.Error()})
 		case errors.Is(err, domain.ErrInsufficientStock):
 			writeJSON(w, http.StatusUnprocessableEntity, middleware.ErrorResponse{Error: err.Error()})
 		case errors.Is(err, domain.ErrInvalidQuantity):
@@ -200,6 +204,8 @@ func (h *StockHandler) StockAdjust(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, domain.ErrItemNotFound):
 			writeJSON(w, http.StatusNotFound, middleware.ErrorResponse{Error: "item not found"})
+		case errors.Is(err, domain.ErrItemInactive):
+			writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: err.Error()})
 		case errors.Is(err, domain.ErrInvalidQuantity):
 			writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: err.Error()})
 		default:

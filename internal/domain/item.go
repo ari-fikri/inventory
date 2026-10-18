@@ -16,6 +16,7 @@ var (
 	ErrNegativeThreshold = errors.New("min threshold cannot be negative")
 	ErrItemAlreadyExists = errors.New("item with this SKU already exists for this tenant")
 	ErrItemNotFound      = errors.New("item not found")
+	ErrItemInactive      = errors.New("cannot perform stock movements on an inactive item")
 )
 
 type Item struct {
