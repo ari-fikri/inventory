@@ -20,6 +20,7 @@ type ItemRepository interface {
 	GetBySKU(ctx context.Context, tenantID, sku string) (*domain.Item, error)
 	GetByID(ctx context.Context, tenantID, id string) (*domain.Item, error)
 	List(ctx context.Context, tenantID string) ([]*domain.Item, error)
+	ListLowStock(ctx context.Context, tenantID string) ([]*domain.LowStockItem, error)
 }
 
 type ItemService interface {
@@ -27,4 +28,5 @@ type ItemService interface {
 	GetItem(ctx context.Context, tenantID, id string) (*domain.Item, error)
 	GetItemBySKU(ctx context.Context, tenantID, sku string) (*domain.Item, error)
 	ListItems(ctx context.Context, tenantID string) ([]*domain.Item, error)
+	ListLowStock(ctx context.Context, tenantID string) ([]*domain.LowStockItem, error)
 }

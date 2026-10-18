@@ -31,6 +31,11 @@ type Item struct {
 	UpdatedAt    time.Time
 }
 
+type LowStockItem struct {
+	Item            *Item
+	CurrentQuantity int
+}
+
 type NewItemParams struct {
 	TenantID     string
 	SKU          string

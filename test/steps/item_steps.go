@@ -115,4 +115,38 @@ func RegisterItemSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 		}
 		return nil
 	})
+
+	sc.Step(`^I query low stock items$`, func() error {
+		return ctx.SendRequest("GET", "/api/v1/items/low-stock", ctx.CurrentTenantID, nil)
+	})
+
+	sc.Step(`^the low stock list should contain item with SKU "([^"]*)"$`, func(sku string) error {
+		var items []struct {
+			SKU string `json:"sku"`
+		}
+		if err := json.Unmarshal(ctx.LastBody, &items); err != nil {
+			return fmt.Errorf("failed to unmarshal low stock items: %w, body: %s", err, string(ctx.LastBody))
+		}
+		for _, it := range items {
+			if it.SKU == sku {
+				return nil
+			}
+		}
+		return fmt.Errorf("expected low stock list to contain SKU %q, but was not found. Body: %s", sku, string(ctx.LastBody))
+	})
+
+	sc.Step(`^the low stock list should not contain item with SKU "([^"]*)"$`, func(sku string) error {
+		var items []struct {
+			SKU string `json:"sku"`
+		}
+		if err := json.Unmarshal(ctx.LastBody, &items); err != nil {
+			return fmt.Errorf("failed to unmarshal low stock items: %w, body: %s", err, string(ctx.LastBody))
+		}
+		for _, it := range items {
+			if it.SKU == sku {
+				return fmt.Errorf("expected low stock list NOT to contain SKU %q, but it was found", sku)
+			}
+		}
+		return nil
+	})
 }

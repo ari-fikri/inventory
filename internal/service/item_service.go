@@ -55,3 +55,7 @@ func (s *ItemService) GetItemBySKU(ctx context.Context, tenantID, sku string) (*
 func (s *ItemService) ListItems(ctx context.Context, tenantID string) ([]*domain.Item, error) {
 	return s.repo.List(ctx, tenantID)
 }
+
+func (s *ItemService) ListLowStock(ctx context.Context, tenantID string) ([]*domain.LowStockItem, error) {
+	return s.repo.ListLowStock(ctx, tenantID)
+}

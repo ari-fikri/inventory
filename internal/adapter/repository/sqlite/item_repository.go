@@ -107,6 +107,69 @@ func (r *ItemRepository) List(ctx context.Context, tenantID string) ([]*domain.I
 	return items, nil
 }
 
+func (r *ItemRepository) ListLowStock(ctx context.Context, tenantID string) ([]*domain.LowStockItem, error) {
+	query := `
+		SELECT
+			i.id, i.tenant_id, i.sku, i.name, i.description, i.unit_price, i.min_threshold, i.is_active, i.created_at, i.updated_at,
+			COALESCE(s.quantity, 0) as current_quantity
+		FROM items i
+		LEFT JOIN stock_levels s ON s.tenant_id = i.tenant_id AND s.item_id = i.id
+		WHERE i.tenant_id = ? AND i.is_active = 1 AND COALESCE(s.quantity, 0) <= i.min_threshold
+		ORDER BY COALESCE(s.quantity, 0) ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query low stock items: %w", err)
+	}
+	defer rows.Close()
+
+	var results []*domain.LowStockItem
+	for rows.Next() {
+		var item domain.Item
+		var isActiveInt int
+		var createdAtStr, updatedAtStr string
+		var currentQty int
+
+		err := rows.Scan(
+			&item.ID,
+			&item.TenantID,
+			&item.SKU,
+			&item.Name,
+			&item.Description,
+			&item.UnitPrice,
+			&item.MinThreshold,
+			&isActiveInt,
+			&createdAtStr,
+			&updatedAtStr,
+			&currentQty,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan low stock item: %w", err)
+		}
+
+		item.IsActive = isActiveInt == 1
+		createdAt, err := time.Parse(time.RFC3339Nano, createdAtStr)
+		if err == nil {
+			item.CreatedAt = createdAt
+		}
+		updatedAt, err := time.Parse(time.RFC3339Nano, updatedAtStr)
+		if err == nil {
+			item.UpdatedAt = updatedAt
+		}
+
+		results = append(results, &domain.LowStockItem{
+			Item:            &item,
+			CurrentQuantity: currentQty,
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("low stock row iteration error: %w", err)
+	}
+
+	return results, nil
+}
+
 type rowScanner interface {
 	Scan(dest ...any) error
 }

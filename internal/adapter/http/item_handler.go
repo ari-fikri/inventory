@@ -166,6 +166,46 @@ func (h *ItemHandler) GetBySKU(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+type LowStockItemResponseDTO struct {
+	ItemResponseDTO
+	CurrentQuantity int `json:"current_quantity"`
+}
+
+func (h *ItemHandler) ListLowStock(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := middleware.GetTenantID(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "X-Tenant-ID header is required"})
+		return
+	}
+
+	items, err := h.itemService.ListLowStock(r.Context(), tenantID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, middleware.ErrorResponse{Error: "failed to list low stock items"})
+		return
+	}
+
+	resps := make([]LowStockItemResponseDTO, 0, len(items))
+	for _, it := range items {
+		resps = append(resps, LowStockItemResponseDTO{
+			ItemResponseDTO: ItemResponseDTO{
+				ID:           it.Item.ID,
+				TenantID:     it.Item.TenantID,
+				SKU:          it.Item.SKU,
+				Name:         it.Item.Name,
+				Description:  it.Item.Description,
+				UnitPrice:    it.Item.UnitPrice,
+				MinThreshold: it.Item.MinThreshold,
+				IsActive:     it.Item.IsActive,
+				CreatedAt:    it.Item.CreatedAt.Format(time.RFC3339Nano),
+				UpdatedAt:    it.Item.UpdatedAt.Format(time.RFC3339Nano),
+			},
+			CurrentQuantity: it.CurrentQuantity,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, resps)
+}
+
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
