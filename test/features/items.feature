@@ -30,3 +30,25 @@ Feature: Item Catalog Management
     Then the response status code should be 409
     And the response should contain error "item with this SKU already exists for this tenant"
 
+  Scenario: Query items that are low in stock
+    Given I am authenticated as tenant "tenant-alpha"
+    When I create an item with the following details:
+      | sku           | LOW-01             |
+      | name          | Low Stock Monitor  |
+      | description   | 4K Monitor         |
+      | unit_price    | 299.99             |
+      | min_threshold | 10                 |
+    And I add 5 units of stock to item with SKU "LOW-01" with reference "PO-L1" and note "Low initial stock"
+    When I create an item with the following details:
+      | sku           | HIGH-01            |
+      | name          | Abundant Mousepad  |
+      | description   | Large gaming pad   |
+      | unit_price    | 19.99              |
+      | min_threshold | 5                  |
+    And I add 20 units of stock to item with SKU "HIGH-01" with reference "PO-H1" and note "Plentiful stock"
+    When I query low stock items
+    Then the response status code should be 200
+    And the low stock list should contain item with SKU "LOW-01"
+    And the low stock list should not contain item with SKU "HIGH-01"
+
+
