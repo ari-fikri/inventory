@@ -25,3 +25,20 @@ Feature: Inventory Valuation and Cost Layer Tracking
     Then the response status code should be 200
     And the valuation response should show total quantity 5 and total value 100.00
 
+  Scenario: Tenant valuation method configuration and switching restrictions
+    Given I am authenticated as tenant "tenant-gamma"
+    When I get valuation settings
+    Then the response status code should be 200
+    And the valuation method should be "FIFO"
+    And an item exists with SKU "GAMMA-ITEM-01" and name "Gamma Item"
+    And I add 10 units of stock to item with SKU "GAMMA-ITEM-01" with unit cost 12.00 and reference "INIT"
+    When I update valuation method to "AVCO"
+    Then the response status code should be 400
+    And the response should contain error "cannot change valuation method when stock is greater than zero"
+    When I dispatch 10 units of stock from item with SKU "GAMMA-ITEM-01" with reference "CLEANUP" and note "Clear stock"
+    Then the response status code should be 200
+    When I update valuation method to "AVCO"
+    Then the response status code should be 200
+    And the valuation method should be "AVCO"
+
+

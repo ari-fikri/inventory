@@ -71,4 +71,28 @@ func RegisterValuationSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 		}
 		return nil
 	})
+
+	sc.Step(`^I get valuation settings$`, func() error {
+		return ctx.SendRequest("GET", "/api/v1/valuation/settings", ctx.CurrentTenantID, nil)
+	})
+
+	sc.Step(`^the valuation method should be "([^"]*)"$`, func(expectedMethod string) error {
+		var resp struct {
+			ValuationMethod string `json:"valuation_method"`
+		}
+		if err := json.Unmarshal(ctx.LastBody, &resp); err != nil {
+			return fmt.Errorf("failed to unmarshal valuation settings response: %w, body: %s", err, string(ctx.LastBody))
+		}
+		if resp.ValuationMethod != expectedMethod {
+			return fmt.Errorf("expected valuation method %q, got %q", expectedMethod, resp.ValuationMethod)
+		}
+		return nil
+	})
+
+	sc.Step(`^I update valuation method to "([^"]*)"$`, func(method string) error {
+		payload := map[string]any{
+			"valuation_method": method,
+		}
+		return ctx.SendRequest("PUT", "/api/v1/valuation/settings", ctx.CurrentTenantID, payload)
+	})
 }
