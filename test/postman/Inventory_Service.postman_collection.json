@@ -528,6 +528,60 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Stock OUT - Reject Insufficient Stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 422 Unprocessable Entity\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"Returns insufficient stock error\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.eql(\"insufficient stock for fulfillment\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_alpha}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 999999,\n  \"reference\": \"SO-EXCESSIVE\",\n  \"notes\": \"Excessive quantity\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/items/sku/SKU-001/stock/out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items",
+                "sku",
+                "SKU-001",
+                "stock",
+                "out"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }

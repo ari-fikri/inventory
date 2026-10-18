@@ -29,4 +29,14 @@ Feature: Stock Movement and Ledger Management
     And the current stock for item with SKU "OUT-ITEM-01" should be 30
     And a stock movement record of type "OUT" with quantity 20 should be logged
 
+  Scenario: Reject stock dispatch when available stock is insufficient
+    Given I am authenticated as tenant "tenant-alpha"
+    And an item exists with SKU "GUARD-ITEM-01" and name "Limited Edition Mouse"
+    And I add 10 units of stock to item with SKU "GUARD-ITEM-01" with reference "PO-SMALL" and note "Limited batch"
+    When I dispatch 25 units of stock from item with SKU "GUARD-ITEM-01" with reference "SO-OVER" and note "Excessive order"
+    Then the response status code should be 422
+    And the response should contain error "insufficient stock for fulfillment"
+    And the current stock for item with SKU "GUARD-ITEM-01" should be 10
+
+
 
