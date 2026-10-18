@@ -20,3 +20,13 @@ Feature: Stock Movement and Ledger Management
     And the current stock for item with SKU "AUDIT-ITEM-01" should be 42
     And a stock movement record of type "ADJUST" with quantity 8 should be logged
 
+  Scenario: Successfully fulfill/deduct stock for an item (Stock OUT)
+    Given I am authenticated as tenant "tenant-alpha"
+    And an item exists with SKU "OUT-ITEM-01" and name "Gaming Headset"
+    And I add 50 units of stock to item with SKU "OUT-ITEM-01" with reference "PO-INIT" and note "Initial stock"
+    When I dispatch 20 units of stock from item with SKU "OUT-ITEM-01" with reference "SO-1001" and note "Customer order dispatch"
+    Then the response status code should be 200
+    And the current stock for item with SKU "OUT-ITEM-01" should be 30
+    And a stock movement record of type "OUT" with quantity 20 should be logged
+
+
