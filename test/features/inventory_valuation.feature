@@ -41,4 +41,11 @@ Feature: Inventory Valuation and Cost Layer Tracking
     Then the response status code should be 200
     And the valuation method should be "AVCO"
 
+  Scenario: Reject unsupported inventory valuation method
+    Given I am authenticated as tenant "tenant-gamma"
+    When I update valuation method to "LIFO"
+    Then the response status code should be 400
+    And the response should contain error "invalid valuation method; allowed methods are FIFO, AVCO"
+
+
 
