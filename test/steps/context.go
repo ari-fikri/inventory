@@ -10,9 +10,10 @@ import (
 )
 
 type TestContext struct {
-	Handler      http.Handler
-	LastResponse *http.Response
-	LastBody     []byte
+	Handler         http.Handler
+	CurrentTenantID string
+	LastResponse    *http.Response
+	LastBody        []byte
 }
 
 func NewTestContext(handler http.Handler) *TestContext {

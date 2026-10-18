@@ -20,6 +20,7 @@ func InitializeScenario(sc *godog.ScenarioContext) {
 	})
 
 	steps.RegisterTenantSteps(sc, testCtx)
+	steps.RegisterItemSteps(sc, testCtx)
 }
 
 func TestFeatures(t *testing.T) {
