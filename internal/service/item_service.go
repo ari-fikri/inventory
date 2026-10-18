@@ -75,6 +75,35 @@ func (s *ItemService) GetItemBySKU(ctx context.Context, tenantID, sku string) (*
 	return s.repo.GetBySKU(ctx, tenantID, sku)
 }
 
+func (s *ItemService) DeactivateItem(ctx context.Context, tenantID, sku string) (*domain.Item, error) {
+	item, err := s.repo.GetBySKU(ctx, tenantID, sku)
+	if err != nil {
+		return nil, err
+	}
+
+	item.Deactivate()
+	if err := s.repo.Update(ctx, item); err != nil {
+		return nil, err
+	}
+
+	return item, nil
+}
+
+func (s *ItemService) ActivateItem(ctx context.Context, tenantID, sku string) (*domain.Item, error) {
+	item, err := s.repo.GetBySKU(ctx, tenantID, sku)
+	if err != nil {
+		return nil, err
+	}
+
+	item.Activate()
+	if err := s.repo.Update(ctx, item); err != nil {
+		return nil, err
+	}
+
+	return item, nil
+}
+
+
 func (s *ItemService) ListItems(ctx context.Context, tenantID string) ([]*domain.Item, error) {
 	return s.repo.List(ctx, tenantID)
 }

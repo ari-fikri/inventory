@@ -38,6 +38,9 @@ type ItemService interface {
 	UpdateItem(ctx context.Context, cmd UpdateItemCommand) (*domain.Item, error)
 	GetItem(ctx context.Context, tenantID, id string) (*domain.Item, error)
 	GetItemBySKU(ctx context.Context, tenantID, sku string) (*domain.Item, error)
+	DeactivateItem(ctx context.Context, tenantID, sku string) (*domain.Item, error)
+	ActivateItem(ctx context.Context, tenantID, sku string) (*domain.Item, error)
 	ListItems(ctx context.Context, tenantID string) ([]*domain.Item, error)
 	ListLowStock(ctx context.Context, tenantID string) ([]*domain.LowStockItem, error)
 }
+

@@ -110,3 +110,14 @@ func (i *Item) Update(params UpdateItemParams) error {
 	i.UpdatedAt = time.Now().UTC()
 	return nil
 }
+
+func (i *Item) Deactivate() {
+	i.IsActive = false
+	i.UpdatedAt = time.Now().UTC()
+}
+
+func (i *Item) Activate() {
+	i.IsActive = true
+	i.UpdatedAt = time.Now().UTC()
+}
+
