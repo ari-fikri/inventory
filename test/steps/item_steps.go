@@ -194,4 +194,13 @@ func RegisterItemSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 		}
 		return nil
 	})
+
+	sc.Step(`^I deactivate item with SKU "([^"]*)"$`, func(sku string) error {
+		return ctx.SendRequest("PATCH", "/api/v1/items/sku/"+sku+"/deactivate", ctx.CurrentTenantID, nil)
+	})
+
+	sc.Step(`^I reactivate item with SKU "([^"]*)"$`, func(sku string) error {
+		return ctx.SendRequest("PATCH", "/api/v1/items/sku/"+sku+"/activate", ctx.CurrentTenantID, nil)
+	})
 }
+

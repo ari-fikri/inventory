@@ -67,4 +67,18 @@ Feature: Item Catalog Management
       | unit_price    | 79.99                             |
       | min_threshold | 8                                 |
 
+  Scenario: Successfully deactivate and reactivate an item
+    Given I am authenticated as tenant "tenant-alpha"
+    And an item exists with SKU "DEACT-01" and name "Deactivatable Item"
+    When I deactivate item with SKU "DEACT-01"
+    Then the response status code should be 200
+    And the response should contain item details:
+      | sku       | DEACT-01 |
+      | is_active | false    |
+    When I reactivate item with SKU "DEACT-01"
+    Then the response status code should be 200
+    And the response should contain item details:
+      | sku       | DEACT-01 |
+      | is_active | true     |
+
 
