@@ -58,4 +58,17 @@ func RegisterValuationSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 
 		return nil
 	})
+
+	sc.Step(`^the response should contain total COGS ([0-9.]+)$`, func(expectedCOGS float64) error {
+		var resp struct {
+			TotalCOGS float64 `json:"total_cogs"`
+		}
+		if err := json.Unmarshal(ctx.LastBody, &resp); err != nil {
+			return fmt.Errorf("failed to unmarshal stock response for COGS: %w, body: %s", err, string(ctx.LastBody))
+		}
+		if math.Abs(resp.TotalCOGS-expectedCOGS) > 0.001 {
+			return fmt.Errorf("expected total COGS %.2f, got %.2f", expectedCOGS, resp.TotalCOGS)
+		}
+		return nil
+	})
 }

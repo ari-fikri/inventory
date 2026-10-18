@@ -1209,6 +1209,60 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Fulfill Stock with FIFO COGS Calculation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response includes COGS calculation\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.total_cogs).to.be.at.least(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_alpha}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 5,\n  \"reference\": \"ORD-COGS-01\",\n  \"notes\": \"Order fulfillment with FIFO valuation\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/items/sku/SKU-001/stock/out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items",
+                "sku",
+                "SKU-001",
+                "stock",
+                "out"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }
