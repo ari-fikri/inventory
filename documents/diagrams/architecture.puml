@@ -3,7 +3,7 @@
 skinparam componentStyle uml2
 skinparam packageStyle rectangle
 
-title Inventory Web Service - Hexagonal Architecture
+title Inventory Web Service - Hexagonal Architecture with Multi-Database Persistence
 
 package "Clients & Consumers" {
     [API Client / Frontend] as Client
@@ -44,16 +44,41 @@ package "Core Domain & Application Ports" {
 }
 
 package "Secondary / Driven Adapters (Outbound)" {
-    package "Persistence Layer" {
-        [SQLite Item Repository] as SqliteItemRepo
-        [SQLite Stock Repository] as SqliteStockRepo
-        [SQLite Valuation Repository] as SqliteValuationRepo
-        [SQLite Supplier Repository] as SqliteSupplierRepo
-        [SQLite Purchase Order Repository] as SqlitePORepo
+    package "SQL Persistence Layer" {
+        package "Database-Agnostic Repositories" {
+            [SQL Item Repository] as SqlItemRepo
+            [SQL Stock Repository] as SqlStockRepo
+            [SQL Valuation Repository] as SqlValuationRepo
+            [SQL Supplier Repository] as SqlSupplierRepo
+            [SQL Purchase Order Repository] as SqlPORepo
+        }
+
+        package "Dialect Abstraction Engine" {
+            interface "Dialect" as IDialect {
+                +Rebind(query)
+                +IsUniqueConstraintViolation(err)
+                +UpsertStockLevelQuery()
+                +UpsertTenantSettingsQuery()
+                +FormatTime / ParseTime
+                +FormatBool / ParseBool
+            }
+            [SQLite Dialect (?)] as SQLiteDialect
+            [PostgreSQL Dialect ($n)] as PostgresDialect
+            [Oracle Dialect (:n, MERGE)] as OracleDialect
+        }
+
+        package "Migration Engine" {
+            [Schema Migration Runner] as MigrationRunner
+            [Embedded DDL Scripts\n(sqlite, postgres, oracle)] as EmbeddedDDL
+        }
     }
 }
 
-database "SQLite Database\n(File or :memory:)" as SQLite
+database "Target SQL Database\n(Configurable via DATABASE_DRIVER)" as SQLDB {
+    [SQLite (file / :memory:)] as DB_SQLite
+    [PostgreSQL (12+ / 16+)] as DB_Postgres
+    [Oracle (19c / 21c / 23ai)] as DB_Oracle
+}
 
 Client --> TenantMW : HTTP Request (X-Tenant-ID)
 Postman --> TenantMW : HTTP Request (X-Tenant-ID)
@@ -85,16 +110,29 @@ IValuationService --> IValuationRepo
 IPOService --> ISupplierRepo
 IPOService --> IPORepo
 
-SqliteItemRepo .up.|> IItemRepo
-SqliteStockRepo .up.|> IStockRepo
-SqliteValuationRepo .up.|> IValuationRepo
-SqliteSupplierRepo .up.|> ISupplierRepo
-SqlitePORepo .up.|> IPORepo
+SqlItemRepo .up.|> IItemRepo
+SqlStockRepo .up.|> IStockRepo
+SqlValuationRepo .up.|> IValuationRepo
+SqlSupplierRepo .up.|> ISupplierRepo
+SqlPORepo .up.|> IPORepo
 
-SqliteItemRepo --> SQLite : SQL with tenant_id filter
-SqliteStockRepo --> SQLite : SQL with tenant_id filter
-SqliteValuationRepo --> SQLite : SQL with tenant_id filter
-SqliteSupplierRepo --> SQLite : SQL with tenant_id filter
-SqlitePORepo --> SQLite : SQL with tenant_id filter
+SqlItemRepo ..> IDialect : rebinds & parses
+SqlStockRepo ..> IDialect : rebinds & parses
+SqlValuationRepo ..> IDialect : rebinds & parses
+SqlSupplierRepo ..> IDialect : rebinds & parses
+SqlPORepo ..> IDialect : rebinds & parses
+
+SQLiteDialect .up.|> IDialect
+PostgresDialect .up.|> IDialect
+OracleDialect .up.|> IDialect
+
+MigrationRunner ..> EmbeddedDDL : loads .up.sql
+MigrationRunner --> SQLDB : executes schema_migrations
+
+SqlItemRepo --> SQLDB : parameterized SQL
+SqlStockRepo --> SQLDB : parameterized SQL
+SqlValuationRepo --> SQLDB : parameterized SQL
+SqlSupplierRepo --> SQLDB : parameterized SQL
+SqlPORepo --> SQLDB : parameterized SQL
 
 @enduml
