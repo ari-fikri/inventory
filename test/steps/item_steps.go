@@ -44,6 +44,11 @@ func RegisterItemSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 		return nil
 	})
 
+	sc.Step(`^I get item by SKU "([^"]*)" as tenant "([^"]*)"$`, func(sku, tenantID string) error {
+		ctx.CurrentTenantID = tenantID
+		return ctx.SendRequest("GET", "/api/v1/items/sku/"+sku, tenantID, nil)
+	})
+
 	sc.Step(`^I create an item with the following details:$`, func(table *godog.Table) error {
 		payload := make(map[string]any)
 

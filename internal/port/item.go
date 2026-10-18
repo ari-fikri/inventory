@@ -25,5 +25,6 @@ type ItemRepository interface {
 type ItemService interface {
 	CreateItem(ctx context.Context, cmd CreateItemCommand) (*domain.Item, error)
 	GetItem(ctx context.Context, tenantID, id string) (*domain.Item, error)
+	GetItemBySKU(ctx context.Context, tenantID, sku string) (*domain.Item, error)
 	ListItems(ctx context.Context, tenantID string) ([]*domain.Item, error)
 }

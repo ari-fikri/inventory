@@ -127,6 +127,45 @@ func (h *ItemHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resps)
 }
 
+func (h *ItemHandler) GetBySKU(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := middleware.GetTenantID(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "X-Tenant-ID header is required"})
+		return
+	}
+
+	sku := r.PathValue("sku")
+	if sku == "" {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "SKU parameter is required"})
+		return
+	}
+
+	item, err := h.itemService.GetItemBySKU(r.Context(), tenantID, sku)
+	if err != nil {
+		if errors.Is(err, domain.ErrItemNotFound) {
+			writeJSON(w, http.StatusNotFound, middleware.ErrorResponse{Error: "item not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, middleware.ErrorResponse{Error: "internal server error"})
+		return
+	}
+
+	resp := ItemResponseDTO{
+		ID:           item.ID,
+		TenantID:     item.TenantID,
+		SKU:          item.SKU,
+		Name:         item.Name,
+		Description:  item.Description,
+		UnitPrice:    item.UnitPrice,
+		MinThreshold: item.MinThreshold,
+		IsActive:     item.IsActive,
+		CreatedAt:    item.CreatedAt.Format(time.RFC3339Nano),
+		UpdatedAt:    item.UpdatedAt.Format(time.RFC3339Nano),
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

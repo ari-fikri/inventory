@@ -48,6 +48,10 @@ func (s *ItemService) GetItem(ctx context.Context, tenantID, id string) (*domain
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
+func (s *ItemService) GetItemBySKU(ctx context.Context, tenantID, sku string) (*domain.Item, error) {
+	return s.repo.GetBySKU(ctx, tenantID, sku)
+}
+
 func (s *ItemService) ListItems(ctx context.Context, tenantID string) ([]*domain.Item, error) {
 	return s.repo.List(ctx, tenantID)
 }
