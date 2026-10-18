@@ -1,0 +1,53 @@
+@startuml sequence_flow
+!theme plain
+autonumber
+
+title Request Execution Flow & Tenant Context
+
+actor "Client / Postman / Godog" as Client
+participant "TenantMiddleware" as MW
+participant "ItemHandler" as Handler
+participant "ItemService" as Service
+participant "SQLiteItemRepo" as Repo
+database "SQLite DB" as DB
+
+== Request without Tenant ID ==
+Client -> MW : POST /api/v1/items (No X-Tenant-ID)
+activate MW
+MW --> Client : 400 Bad Request\n{"error": "X-Tenant-ID header is required"}
+deactivate MW
+
+== Valid Multi-Tenant Request ==
+Client -> MW : POST /api/v1/items\nHeader: X-Tenant-ID: "tenant-acme"\nBody: {"sku": "SKU-001", "name": "Hammer"}
+activate MW
+MW -> MW : Validate header presence & format
+MW -> Handler : ctx = WithTenantID(ctx, "tenant-acme")
+activate Handler
+
+Handler -> Handler : Decode JSON payload & validate input
+Handler -> Service : CreateItem(ctx, cmd)
+activate Service
+
+Service -> Repo : ExistsBySKU(ctx, tenantID, "SKU-001")
+activate Repo
+Repo -> DB : SELECT 1 FROM items WHERE tenant_id = ? AND sku = ?
+DB --> Repo : None
+Repo --> Service : false
+deactivate Repo
+
+Service -> Service : Build Item entity with generated UUID
+Service -> Repo : Save(ctx, item)
+activate Repo
+Repo -> DB : INSERT INTO items (id, tenant_id, sku, ...) VALUES (?, ?, ?, ...)
+DB --> Repo : OK
+Repo --> Service : nil (Success)
+deactivate Repo
+
+Service --> Handler : createdItem, nil
+deactivate Service
+
+Handler --> Client : 201 Created\n{"id": "...", "sku": "SKU-001", "tenant_id": "tenant-acme", ...}
+deactivate Handler
+deactivate MW
+
+@enduml

@@ -1,0 +1,70 @@
+@startuml architecture
+!theme plain
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+
+title Inventory Web Service - Hexagonal Architecture
+
+package "Clients & Consumers" {
+    [API Client / Frontend] as Client
+    [Postman Test Suite] as Postman
+    [Godog BDD Runner] as Godog
+}
+
+package "Primary / Driving Adapters (Inbound)" {
+    package "HTTP Layer" {
+        [Tenant Middleware] as TenantMW
+        [Item Handler] as ItemHandler
+        [Stock Handler] as StockHandler
+    }
+}
+
+package "Core Domain & Application Ports" {
+    package "Ports" {
+        interface "ItemService" as IItemService
+        interface "StockService" as IStockService
+        interface "ItemRepository" as IItemRepo
+        interface "StockRepository" as IStockRepo
+    }
+
+    package "Domain Logic & Models" {
+        [Item Domain Entity] as ItemEntity
+        [Stock Movement Entity] as StockEntity
+        [Inventory Invariants & Rules] as DomainRules
+    }
+}
+
+package "Secondary / Driven Adapters (Outbound)" {
+    package "Persistence Layer" {
+        [SQLite Item Repository] as SqliteItemRepo
+        [SQLite Stock Repository] as SqliteStockRepo
+    }
+}
+
+database "SQLite Database\n(File or :memory:)" as SQLite
+
+Client --> TenantMW : HTTP Request (X-Tenant-ID)
+Postman --> TenantMW : HTTP Request (X-Tenant-ID)
+Godog --> TenantMW : Test HTTP Execution
+
+TenantMW --> ItemHandler : Scoped Context
+TenantMW --> StockHandler : Scoped Context
+
+ItemHandler --> IItemService
+StockHandler --> IStockService
+
+IItemService ..> ItemEntity
+IStockService ..> StockEntity
+ItemEntity ..> DomainRules
+StockEntity ..> DomainRules
+
+IItemService --> IItemRepo
+IStockService --> IStockRepo
+
+SqliteItemRepo .up.|> IItemRepo
+SqliteStockRepo .up.|> IStockRepo
+
+SqliteItemRepo --> SQLite : SQL with tenant_id filter
+SqliteStockRepo --> SQLite : SQL with tenant_id filter
+
+@enduml

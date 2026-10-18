@@ -1,0 +1,51 @@
+@startuml er_diagram
+!theme plain
+skinparam linetype ortho
+
+title Multi-Tenant Inventory Database Schema (SQLite)
+
+entity "items" as items {
+    * id : TEXT [PK]
+    --
+    * tenant_id : TEXT [INDEX]
+    * sku : TEXT
+    * name : TEXT
+    * description : TEXT
+    * unit_price : REAL
+    * min_threshold : INTEGER
+    * is_active : INTEGER
+    * created_at : TEXT (ISO8601)
+    * updated_at : TEXT (ISO8601)
+    --
+    UNIQUE(tenant_id, sku)
+}
+
+entity "stock_levels" as stock_levels {
+    * id : TEXT [PK]
+    --
+    * tenant_id : TEXT [INDEX]
+    * item_id : TEXT [FK -> items.id]
+    * quantity : INTEGER
+    * reserved_quantity : INTEGER
+    * updated_at : TEXT (ISO8601)
+    --
+    UNIQUE(tenant_id, item_id)
+}
+
+entity "stock_movements" as stock_movements {
+    * id : TEXT [PK]
+    --
+    * tenant_id : TEXT [INDEX]
+    * item_id : TEXT [FK -> items.id]
+    * movement_type : TEXT (IN / OUT / ADJUST)
+    * quantity : INTEGER
+    * balance_after : INTEGER
+    * reference : TEXT
+    * notes : TEXT
+    * created_at : TEXT (ISO8601)
+}
+
+items ||--o| stock_levels : "tracks current stock for"
+items ||--o{ stock_movements : "audit trail of changes"
+
+@enduml
