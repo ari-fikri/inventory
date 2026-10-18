@@ -47,6 +47,7 @@ func InitializeScenario(sc *godog.ScenarioContext) {
 	steps.RegisterItemSteps(sc, testCtx)
 	steps.RegisterStockSteps(sc, testCtx)
 	steps.RegisterValuationSteps(sc, testCtx)
+	steps.RegisterPurchaseOrderSteps(sc, testCtx)
 }
 
 func TestFeatures(t *testing.T) {
