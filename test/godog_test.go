@@ -2,22 +2,18 @@ package test
 
 import (
 	"context"
-	"net/http"
 	"testing"
 
+	inventoryHttp "new-inventory/internal/adapter/http"
 	"new-inventory/test/steps"
 
 	"github.com/cucumber/godog"
 )
 
 func InitializeScenario(sc *godog.ScenarioContext) {
-	// Dummy handler for RED phase
-	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"message":"not found"}`))
-	})
+	appRouter := inventoryHttp.NewRouter(inventoryHttp.RouterConfig{})
 
-	testCtx := steps.NewTestContext(dummyHandler)
+	testCtx := steps.NewTestContext(appRouter)
 	sc.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 		testCtx.Close()
 		return ctx, nil
