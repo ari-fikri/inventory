@@ -998,6 +998,62 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Transfer Stock Between Warehouses",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Transfer details are confirmed\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.source_warehouse_id).to.eql(\"WH-NORTH\");",
+                  "    pm.expect(jsonData.target_warehouse_id).to.eql(\"WH-SOUTH\");",
+                  "    pm.expect(jsonData.quantity).to.eql(15);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_alpha}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_warehouse_id\": \"WH-NORTH\",\n  \"target_warehouse_id\": \"WH-SOUTH\",\n  \"quantity\": 15,\n  \"reference\": \"TRF-001\",\n  \"notes\": \"Rebalancing shipment\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/items/sku/SKU-001/stock/transfer",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items",
+                "sku",
+                "SKU-001",
+                "stock",
+                "transfer"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }

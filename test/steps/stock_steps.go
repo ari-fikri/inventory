@@ -71,6 +71,18 @@ func RegisterStockSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 		return ctx.SendRequest("POST", "/api/v1/items/sku/"+sku+"/stock/out", ctx.CurrentTenantID, payload)
 	})
 
+	sc.Step(`^I transfer (\d+) units of stock for item with SKU "([^"]*)" from warehouse "([^"]*)" to warehouse "([^"]*)" with reference "([^"]*)" and note "([^"]*)"$`, func(qty int, sku, srcWH, destWH, ref, note string) error {
+		ctx.LastSKU = sku
+		payload := map[string]any{
+			"source_warehouse_id": srcWH,
+			"target_warehouse_id": destWH,
+			"quantity":            qty,
+			"reference":           ref,
+			"notes":               note,
+		}
+		return ctx.SendRequest("POST", "/api/v1/items/sku/"+sku+"/stock/transfer", ctx.CurrentTenantID, payload)
+	})
+
 	sc.Step(`^the current stock for item with SKU "([^"]*)" should be (\d+)$`, func(sku string, expectedQty int) error {
 		if err := ctx.SendRequest("GET", "/api/v1/items/sku/"+sku+"/stock", ctx.CurrentTenantID, nil); err != nil {
 			return err
