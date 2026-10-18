@@ -25,11 +25,12 @@ entity "stock_levels" as stock_levels {
     --
     * tenant_id : TEXT [INDEX]
     * item_id : TEXT [FK -> items.id]
+    * warehouse_id : TEXT [INDEX]
     * quantity : INTEGER
     * reserved_quantity : INTEGER
     * updated_at : TEXT (ISO8601)
     --
-    UNIQUE(tenant_id, item_id)
+    UNIQUE(tenant_id, item_id, warehouse_id)
 }
 
 entity "stock_movements" as stock_movements {
@@ -37,6 +38,7 @@ entity "stock_movements" as stock_movements {
     --
     * tenant_id : TEXT [INDEX]
     * item_id : TEXT [FK -> items.id]
+    * warehouse_id : TEXT [INDEX]
     * movement_type : TEXT (IN / OUT / ADJUST)
     * quantity : INTEGER
     * balance_after : INTEGER

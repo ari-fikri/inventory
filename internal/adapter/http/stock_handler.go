@@ -20,14 +20,16 @@ func NewStockHandler(stockService port.StockService) *StockHandler {
 }
 
 type StockInRequest struct {
-	Quantity  int    `json:"quantity"`
-	Reference string `json:"reference"`
-	Notes     string `json:"notes"`
+	Quantity    int    `json:"quantity"`
+	WarehouseID string `json:"warehouse_id"`
+	Reference   string `json:"reference"`
+	Notes       string `json:"notes"`
 }
 
 type StockInResponse struct {
 	ItemID       string `json:"item_id"`
 	TenantID     string `json:"tenant_id"`
+	WarehouseID  string `json:"warehouse_id"`
 	Quantity     int    `json:"quantity"`
 	MovementType string `json:"movement_type"`
 	MovementID   string `json:"movement_id"`
@@ -36,16 +38,18 @@ type StockInResponse struct {
 }
 
 type StockLevelResponse struct {
-	ItemID    string `json:"item_id"`
-	TenantID  string `json:"tenant_id"`
-	Quantity  int    `json:"quantity"`
-	UpdatedAt string `json:"updated_at"`
+	ItemID      string `json:"item_id"`
+	TenantID    string `json:"tenant_id"`
+	WarehouseID string `json:"warehouse_id"`
+	Quantity    int    `json:"quantity"`
+	UpdatedAt   string `json:"updated_at"`
 }
 
 type StockMovementResponse struct {
 	ID           string `json:"id"`
 	TenantID     string `json:"tenant_id"`
 	ItemID       string `json:"item_id"`
+	WarehouseID  string `json:"warehouse_id"`
 	MovementType string `json:"movement_type"`
 	Quantity     int    `json:"quantity"`
 	BalanceAfter int    `json:"balance_after"`
@@ -74,11 +78,12 @@ func (h *StockHandler) StockIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := port.StockInCommand{
-		TenantID:  tenantID,
-		SKU:       sku,
-		Quantity:  req.Quantity,
-		Reference: req.Reference,
-		Notes:     req.Notes,
+		TenantID:    tenantID,
+		SKU:         sku,
+		WarehouseID: req.WarehouseID,
+		Quantity:    req.Quantity,
+		Reference:   req.Reference,
+		Notes:       req.Notes,
 	}
 
 	movement, stockLevel, err := h.stockService.StockIn(r.Context(), cmd)
@@ -99,6 +104,7 @@ func (h *StockHandler) StockIn(w http.ResponseWriter, r *http.Request) {
 	resp := StockInResponse{
 		ItemID:       stockLevel.ItemID,
 		TenantID:     stockLevel.TenantID,
+		WarehouseID:  stockLevel.WarehouseID,
 		Quantity:     stockLevel.Quantity,
 		MovementType: movement.MovementType,
 		MovementID:   movement.ID,
@@ -129,11 +135,12 @@ func (h *StockHandler) StockOut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := port.StockOutCommand{
-		TenantID:  tenantID,
-		SKU:       sku,
-		Quantity:  req.Quantity,
-		Reference: req.Reference,
-		Notes:     req.Notes,
+		TenantID:    tenantID,
+		SKU:         sku,
+		WarehouseID: req.WarehouseID,
+		Quantity:    req.Quantity,
+		Reference:   req.Reference,
+		Notes:       req.Notes,
 	}
 
 	movement, stockLevel, err := h.stockService.StockOut(r.Context(), cmd)
@@ -156,6 +163,7 @@ func (h *StockHandler) StockOut(w http.ResponseWriter, r *http.Request) {
 	resp := StockInResponse{
 		ItemID:       stockLevel.ItemID,
 		TenantID:     stockLevel.TenantID,
+		WarehouseID:  stockLevel.WarehouseID,
 		Quantity:     stockLevel.Quantity,
 		MovementType: movement.MovementType,
 		MovementID:   movement.ID,
@@ -168,6 +176,7 @@ func (h *StockHandler) StockOut(w http.ResponseWriter, r *http.Request) {
 
 type StockAdjustRequest struct {
 	TargetQuantity int    `json:"target_quantity"`
+	WarehouseID    string `json:"warehouse_id"`
 	Reference      string `json:"reference"`
 	Notes          string `json:"notes"`
 }
@@ -194,6 +203,7 @@ func (h *StockHandler) StockAdjust(w http.ResponseWriter, r *http.Request) {
 	cmd := port.StockAdjustCommand{
 		TenantID:       tenantID,
 		SKU:            sku,
+		WarehouseID:    req.WarehouseID,
 		TargetQuantity: req.TargetQuantity,
 		Reference:      req.Reference,
 		Notes:          req.Notes,
@@ -217,6 +227,7 @@ func (h *StockHandler) StockAdjust(w http.ResponseWriter, r *http.Request) {
 	resp := StockInResponse{
 		ItemID:       stockLevel.ItemID,
 		TenantID:     stockLevel.TenantID,
+		WarehouseID:  stockLevel.WarehouseID,
 		Quantity:     stockLevel.Quantity,
 		MovementType: movement.MovementType,
 		MovementID:   movement.ID,
@@ -240,7 +251,8 @@ func (h *StockHandler) GetStock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stock, err := h.stockService.GetStock(r.Context(), tenantID, sku)
+	warehouseID := r.URL.Query().Get("warehouse_id")
+	stock, err := h.stockService.GetStock(r.Context(), tenantID, sku, warehouseID)
 	if err != nil {
 		if errors.Is(err, domain.ErrItemNotFound) {
 			writeJSON(w, http.StatusNotFound, middleware.ErrorResponse{Error: "item not found"})
@@ -251,10 +263,11 @@ func (h *StockHandler) GetStock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := StockLevelResponse{
-		ItemID:    stock.ItemID,
-		TenantID:  stock.TenantID,
-		Quantity:  stock.Quantity,
-		UpdatedAt: stock.UpdatedAt.Format(time.RFC3339Nano),
+		ItemID:      stock.ItemID,
+		TenantID:    stock.TenantID,
+		WarehouseID: stock.WarehouseID,
+		Quantity:    stock.Quantity,
+		UpdatedAt:   stock.UpdatedAt.Format(time.RFC3339Nano),
 	}
 
 	writeJSON(w, http.StatusOK, resp)

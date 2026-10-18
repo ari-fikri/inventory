@@ -150,11 +150,13 @@ func (r *ItemRepository) ListLowStock(ctx context.Context, tenantID string) ([]*
 	query := `
 		SELECT
 			i.id, i.tenant_id, i.sku, i.name, i.description, i.unit_price, i.min_threshold, i.is_active, i.created_at, i.updated_at,
-			COALESCE(s.quantity, 0) as current_quantity
+			COALESCE(SUM(s.quantity), 0) as current_quantity
 		FROM items i
 		LEFT JOIN stock_levels s ON s.tenant_id = i.tenant_id AND s.item_id = i.id
-		WHERE i.tenant_id = ? AND i.is_active = 1 AND COALESCE(s.quantity, 0) <= i.min_threshold
-		ORDER BY COALESCE(s.quantity, 0) ASC
+		WHERE i.tenant_id = ? AND i.is_active = 1
+		GROUP BY i.id
+		HAVING COALESCE(SUM(s.quantity), 0) <= i.min_threshold
+		ORDER BY current_quantity ASC
 	`
 	rows, err := r.db.QueryContext(ctx, query, tenantID)
 	if err != nil {

@@ -28,18 +28,20 @@ CREATE TABLE IF NOT EXISTS stock_levels (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
     item_id TEXT NOT NULL,
+    warehouse_id TEXT NOT NULL DEFAULT 'default',
     quantity INTEGER NOT NULL,
     reserved_quantity INTEGER NOT NULL,
     updated_at TEXT NOT NULL,
-    UNIQUE(tenant_id, item_id)
+    UNIQUE(tenant_id, item_id, warehouse_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_stock_levels_tenant ON stock_levels(tenant_id, item_id);
+CREATE INDEX IF NOT EXISTS idx_stock_levels_tenant ON stock_levels(tenant_id, item_id, warehouse_id);
 
 CREATE TABLE IF NOT EXISTS stock_movements (
     id TEXT PRIMARY KEY,
     tenant_id TEXT NOT NULL,
     item_id TEXT NOT NULL,
+    warehouse_id TEXT NOT NULL DEFAULT 'default',
     movement_type TEXT NOT NULL,
     quantity INTEGER NOT NULL,
     balance_after INTEGER NOT NULL,
@@ -48,7 +50,7 @@ CREATE TABLE IF NOT EXISTS stock_movements (
     created_at TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_stock_movements_tenant ON stock_movements(tenant_id, item_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_tenant ON stock_movements(tenant_id, item_id, warehouse_id);
 `
 
 func OpenDB(dataSourceName string) (*sql.DB, error) {

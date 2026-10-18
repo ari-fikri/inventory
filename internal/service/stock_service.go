@@ -36,7 +36,12 @@ func (s *StockService) StockIn(ctx context.Context, cmd port.StockInCommand) (*d
 		return nil, nil, domain.ErrItemInactive
 	}
 
-	currentStock, err := s.stockRepo.GetStock(ctx, cmd.TenantID, item.ID)
+	wh := cmd.WarehouseID
+	if wh == "" {
+		wh = "default"
+	}
+
+	currentStock, err := s.stockRepo.GetStock(ctx, cmd.TenantID, item.ID, wh)
 	currentQty := 0
 	if err != nil && !errors.Is(err, domain.ErrStockNotFound) {
 		return nil, nil, err
@@ -50,6 +55,7 @@ func (s *StockService) StockIn(ctx context.Context, cmd port.StockInCommand) (*d
 	movement, err := domain.NewStockMovement(domain.NewStockMovementParams{
 		TenantID:     cmd.TenantID,
 		ItemID:       item.ID,
+		WarehouseID:  wh,
 		MovementType: domain.MovementTypeIn,
 		Quantity:     cmd.Quantity,
 		BalanceAfter: newBalance,
@@ -65,10 +71,11 @@ func (s *StockService) StockIn(ctx context.Context, cmd port.StockInCommand) (*d
 	}
 
 	updatedLevel := &domain.StockLevel{
-		TenantID:  cmd.TenantID,
-		ItemID:    item.ID,
-		Quantity:  newBalance,
-		UpdatedAt: time.Now().UTC(),
+		TenantID:    cmd.TenantID,
+		ItemID:      item.ID,
+		WarehouseID: wh,
+		Quantity:    newBalance,
+		UpdatedAt:   time.Now().UTC(),
 	}
 
 	return movement, updatedLevel, nil
@@ -87,7 +94,12 @@ func (s *StockService) StockOut(ctx context.Context, cmd port.StockOutCommand) (
 		return nil, nil, domain.ErrItemInactive
 	}
 
-	currentStock, err := s.stockRepo.GetStock(ctx, cmd.TenantID, item.ID)
+	wh := cmd.WarehouseID
+	if wh == "" {
+		wh = "default"
+	}
+
+	currentStock, err := s.stockRepo.GetStock(ctx, cmd.TenantID, item.ID, wh)
 	currentQty := 0
 	if err != nil && !errors.Is(err, domain.ErrStockNotFound) {
 		return nil, nil, err
@@ -105,6 +117,7 @@ func (s *StockService) StockOut(ctx context.Context, cmd port.StockOutCommand) (
 	movement, err := domain.NewStockMovement(domain.NewStockMovementParams{
 		TenantID:     cmd.TenantID,
 		ItemID:       item.ID,
+		WarehouseID:  wh,
 		MovementType: domain.MovementTypeOut,
 		Quantity:     cmd.Quantity,
 		BalanceAfter: newBalance,
@@ -120,10 +133,11 @@ func (s *StockService) StockOut(ctx context.Context, cmd port.StockOutCommand) (
 	}
 
 	updatedLevel := &domain.StockLevel{
-		TenantID:  cmd.TenantID,
-		ItemID:    item.ID,
-		Quantity:  newBalance,
-		UpdatedAt: time.Now().UTC(),
+		TenantID:    cmd.TenantID,
+		ItemID:      item.ID,
+		WarehouseID: wh,
+		Quantity:    newBalance,
+		UpdatedAt:   time.Now().UTC(),
 	}
 
 	return movement, updatedLevel, nil
@@ -142,7 +156,12 @@ func (s *StockService) StockAdjust(ctx context.Context, cmd port.StockAdjustComm
 		return nil, nil, domain.ErrItemInactive
 	}
 
-	currentStock, err := s.stockRepo.GetStock(ctx, cmd.TenantID, item.ID)
+	wh := cmd.WarehouseID
+	if wh == "" {
+		wh = "default"
+	}
+
+	currentStock, err := s.stockRepo.GetStock(ctx, cmd.TenantID, item.ID, wh)
 	currentQty := 0
 	if err != nil && !errors.Is(err, domain.ErrStockNotFound) {
 		return nil, nil, err
@@ -160,6 +179,7 @@ func (s *StockService) StockAdjust(ctx context.Context, cmd port.StockAdjustComm
 	movement, err := domain.NewStockMovement(domain.NewStockMovementParams{
 		TenantID:     cmd.TenantID,
 		ItemID:       item.ID,
+		WarehouseID:  wh,
 		MovementType: domain.MovementTypeAdjust,
 		Quantity:     absDelta,
 		BalanceAfter: cmd.TargetQuantity,
@@ -175,29 +195,35 @@ func (s *StockService) StockAdjust(ctx context.Context, cmd port.StockAdjustComm
 	}
 
 	updatedLevel := &domain.StockLevel{
-		TenantID:  cmd.TenantID,
-		ItemID:    item.ID,
-		Quantity:  cmd.TargetQuantity,
-		UpdatedAt: time.Now().UTC(),
+		TenantID:    cmd.TenantID,
+		ItemID:      item.ID,
+		WarehouseID: wh,
+		Quantity:    cmd.TargetQuantity,
+		UpdatedAt:   time.Now().UTC(),
 	}
 
 	return movement, updatedLevel, nil
 }
 
-func (s *StockService) GetStock(ctx context.Context, tenantID, sku string) (*domain.StockLevel, error) {
+func (s *StockService) GetStock(ctx context.Context, tenantID, sku, warehouseID string) (*domain.StockLevel, error) {
 	item, err := s.itemRepo.GetBySKU(ctx, tenantID, sku)
 	if err != nil {
 		return nil, err
 	}
 
-	stock, err := s.stockRepo.GetStock(ctx, tenantID, item.ID)
+	if warehouseID == "" {
+		warehouseID = "default"
+	}
+
+	stock, err := s.stockRepo.GetStock(ctx, tenantID, item.ID, warehouseID)
 	if err != nil {
 		if errors.Is(err, domain.ErrStockNotFound) {
 			return &domain.StockLevel{
-				TenantID:  tenantID,
-				ItemID:    item.ID,
-				Quantity:  0,
-				UpdatedAt: time.Now().UTC(),
+				TenantID:    tenantID,
+				ItemID:      item.ID,
+				WarehouseID: warehouseID,
+				Quantity:    0,
+				UpdatedAt:   time.Now().UTC(),
 			}, nil
 		}
 		return nil, err

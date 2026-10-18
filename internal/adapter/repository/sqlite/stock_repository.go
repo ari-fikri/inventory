@@ -23,13 +23,16 @@ func NewStockRepository(db *sql.DB) *StockRepository {
 	return &StockRepository{db: db}
 }
 
-func (r *StockRepository) GetStock(ctx context.Context, tenantID, itemID string) (*domain.StockLevel, error) {
+func (r *StockRepository) GetStock(ctx context.Context, tenantID, itemID, warehouseID string) (*domain.StockLevel, error) {
+	if warehouseID == "" {
+		warehouseID = "default"
+	}
 	query := `
-		SELECT id, tenant_id, item_id, quantity, reserved_quantity, updated_at
+		SELECT id, tenant_id, item_id, warehouse_id, quantity, reserved_quantity, updated_at
 		FROM stock_levels
-		WHERE tenant_id = ? AND item_id = ?
+		WHERE tenant_id = ? AND item_id = ? AND warehouse_id = ?
 	`
-	row := r.db.QueryRowContext(ctx, query, tenantID, itemID)
+	row := r.db.QueryRowContext(ctx, query, tenantID, itemID, warehouseID)
 
 	var stock domain.StockLevel
 	var updatedAtStr string
@@ -37,6 +40,7 @@ func (r *StockRepository) GetStock(ctx context.Context, tenantID, itemID string)
 		&stock.ID,
 		&stock.TenantID,
 		&stock.ItemID,
+		&stock.WarehouseID,
 		&stock.Quantity,
 		&stock.ReservedQuantity,
 		&updatedAtStr,
@@ -68,8 +72,8 @@ func (r *StockRepository) RecordMovement(ctx context.Context, movement *domain.S
 	// 1. Insert stock movement audit log
 	insertMovement := `
 		INSERT INTO stock_movements (
-			id, tenant_id, item_id, movement_type, quantity, balance_after, reference, notes, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			id, tenant_id, item_id, warehouse_id, movement_type, quantity, balance_after, reference, notes, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err = tx.ExecContext(
 		ctx,
@@ -77,6 +81,7 @@ func (r *StockRepository) RecordMovement(ctx context.Context, movement *domain.S
 		movement.ID,
 		movement.TenantID,
 		movement.ItemID,
+		movement.WarehouseID,
 		movement.MovementType,
 		movement.Quantity,
 		movement.BalanceAfter,
@@ -91,9 +96,9 @@ func (r *StockRepository) RecordMovement(ctx context.Context, movement *domain.S
 	// 2. Upsert stock level
 	nowStr := time.Now().UTC().Format(time.RFC3339Nano)
 	upsertStock := `
-		INSERT INTO stock_levels (id, tenant_id, item_id, quantity, reserved_quantity, updated_at)
-		VALUES (?, ?, ?, ?, 0, ?)
-		ON CONFLICT(tenant_id, item_id) DO UPDATE SET
+		INSERT INTO stock_levels (id, tenant_id, item_id, warehouse_id, quantity, reserved_quantity, updated_at)
+		VALUES (?, ?, ?, ?, ?, 0, ?)
+		ON CONFLICT(tenant_id, item_id, warehouse_id) DO UPDATE SET
 			quantity = excluded.quantity,
 			updated_at = excluded.updated_at
 	`
@@ -104,6 +109,7 @@ func (r *StockRepository) RecordMovement(ctx context.Context, movement *domain.S
 		stockLevelID,
 		movement.TenantID,
 		movement.ItemID,
+		movement.WarehouseID,
 		newBalance,
 		nowStr,
 	)
@@ -120,7 +126,7 @@ func (r *StockRepository) RecordMovement(ctx context.Context, movement *domain.S
 
 func (r *StockRepository) ListMovements(ctx context.Context, tenantID, itemID string) ([]*domain.StockMovement, error) {
 	query := `
-		SELECT id, tenant_id, item_id, movement_type, quantity, balance_after, reference, notes, created_at
+		SELECT id, tenant_id, item_id, warehouse_id, movement_type, quantity, balance_after, reference, notes, created_at
 		FROM stock_movements
 		WHERE tenant_id = ? AND item_id = ?
 		ORDER BY rowid DESC
@@ -139,6 +145,7 @@ func (r *StockRepository) ListMovements(ctx context.Context, tenantID, itemID st
 			&m.ID,
 			&m.TenantID,
 			&m.ItemID,
+			&m.WarehouseID,
 			&m.MovementType,
 			&m.Quantity,
 			&m.BalanceAfter,

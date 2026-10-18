@@ -24,6 +24,7 @@ type StockLevel struct {
 	ID               string
 	TenantID         string
 	ItemID           string
+	WarehouseID      string
 	Quantity         int
 	ReservedQuantity int
 	UpdatedAt        time.Time
@@ -33,6 +34,7 @@ type StockMovement struct {
 	ID           string
 	TenantID     string
 	ItemID       string
+	WarehouseID  string
 	MovementType string
 	Quantity     int
 	BalanceAfter int
@@ -44,6 +46,7 @@ type StockMovement struct {
 type NewStockMovementParams struct {
 	TenantID     string
 	ItemID       string
+	WarehouseID  string
 	MovementType string
 	Quantity     int
 	BalanceAfter int
@@ -69,10 +72,16 @@ func NewStockMovement(params NewStockMovementParams) (*StockMovement, error) {
 		return nil, ErrInsufficientStock
 	}
 
+	wh := strings.TrimSpace(params.WarehouseID)
+	if wh == "" {
+		wh = "default"
+	}
+
 	return &StockMovement{
 		ID:           uuid.NewString(),
 		TenantID:     tenantID,
 		ItemID:       params.ItemID,
+		WarehouseID:  wh,
 		MovementType: params.MovementType,
 		Quantity:     params.Quantity,
 		BalanceAfter: params.BalanceAfter,
