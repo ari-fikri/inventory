@@ -21,3 +21,14 @@ Feature: Multi-Location Warehouse Stock Management
     And the stock for item with SKU "TRANSFER-01" in warehouse "WH-ORIGIN" should be 65
     And the stock for item with SKU "TRANSFER-01" in warehouse "WH-DEST" should be 35
 
+  Scenario: Reject warehouse transfer when source warehouse has insufficient stock
+    Given I am authenticated as tenant "tenant-alpha"
+    And an item exists with SKU "TRANSFER-LOW" and name "Low Stock Item"
+    And I add 10 units of stock to item with SKU "TRANSFER-LOW" in warehouse "WH-ORIGIN" with reference "PO-INIT" and note "Small batch"
+    When I transfer 50 units of stock for item with SKU "TRANSFER-LOW" from warehouse "WH-ORIGIN" to warehouse "WH-DEST" with reference "TRF-902" and note "Excessive transfer"
+    Then the response status code should be 422
+    And the response should contain error "insufficient stock for transfer in source warehouse"
+    And the stock for item with SKU "TRANSFER-LOW" in warehouse "WH-ORIGIN" should be 10
+    And the stock for item with SKU "TRANSFER-LOW" in warehouse "WH-DEST" should be 0
+
+

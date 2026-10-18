@@ -1054,6 +1054,60 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Reject Stock Transfer When Insufficient Stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 422\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"Error indicates insufficient transfer stock\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.eql(\"insufficient stock for transfer in source warehouse\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_alpha}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_warehouse_id\": \"WH-NORTH\",\n  \"target_warehouse_id\": \"WH-SOUTH\",\n  \"quantity\": 99999,\n  \"reference\": \"TRF-FAIL\",\n  \"notes\": \"Excessive transfer\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/items/sku/SKU-001/stock/transfer",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items",
+                "sku",
+                "SKU-001",
+                "stock",
+                "transfer"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }
