@@ -14,6 +14,14 @@ type StockInCommand struct {
 	Notes     string
 }
 
+type StockOutCommand struct {
+	TenantID  string
+	SKU       string
+	Quantity  int
+	Reference string
+	Notes     string
+}
+
 type StockAdjustCommand struct {
 	TenantID       string
 	SKU            string
@@ -30,6 +38,7 @@ type StockRepository interface {
 
 type StockService interface {
 	StockIn(ctx context.Context, cmd StockInCommand) (*domain.StockMovement, *domain.StockLevel, error)
+	StockOut(ctx context.Context, cmd StockOutCommand) (*domain.StockMovement, *domain.StockLevel, error)
 	StockAdjust(ctx context.Context, cmd StockAdjustCommand) (*domain.StockMovement, *domain.StockLevel, error)
 	GetStock(ctx context.Context, tenantID, sku string) (*domain.StockLevel, error)
 	ListMovements(ctx context.Context, tenantID, sku string) ([]*domain.StockMovement, error)

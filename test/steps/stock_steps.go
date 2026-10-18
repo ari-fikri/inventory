@@ -47,6 +47,16 @@ func RegisterStockSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 		return ctx.SendRequest("POST", "/api/v1/items/sku/"+sku+"/stock/adjust", ctx.CurrentTenantID, payload)
 	})
 
+	sc.Step(`^I dispatch (\d+) units of stock from item with SKU "([^"]*)" with reference "([^"]*)" and note "([^"]*)"$`, func(qty int, sku, ref, note string) error {
+		ctx.LastSKU = sku
+		payload := map[string]any{
+			"quantity":  qty,
+			"reference": ref,
+			"notes":     note,
+		}
+		return ctx.SendRequest("POST", "/api/v1/items/sku/"+sku+"/stock/out", ctx.CurrentTenantID, payload)
+	})
+
 	sc.Step(`^the current stock for item with SKU "([^"]*)" should be (\d+)$`, func(sku string, expectedQty int) error {
 		if err := ctx.SendRequest("GET", "/api/v1/items/sku/"+sku+"/stock", ctx.CurrentTenantID, nil); err != nil {
 			return err
