@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"new-inventory/internal/domain"
@@ -48,6 +49,9 @@ func (r *ItemRepository) Create(ctx context.Context, item *domain.Item) error {
 		item.UpdatedAt.Format(time.RFC3339Nano),
 	)
 	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return domain.ErrItemAlreadyExists
+		}
 		return fmt.Errorf("failed to insert item: %w", err)
 	}
 

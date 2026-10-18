@@ -27,6 +27,23 @@ func RegisterItemSteps(sc *godog.ScenarioContext, ctx *TestContext) {
 		return nil
 	})
 
+	sc.Step(`^an item exists with SKU "([^"]*)" and name "([^"]*)"$`, func(sku, name string) error {
+		payload := map[string]any{
+			"sku":           sku,
+			"name":          name,
+			"description":   "Pre-existing item for testing",
+			"unit_price":    25.0,
+			"min_threshold": 1,
+		}
+		if err := ctx.SendRequest("POST", "/api/v1/items", ctx.CurrentTenantID, payload); err != nil {
+			return err
+		}
+		if ctx.LastResponse.StatusCode != 201 {
+			return fmt.Errorf("failed to setup pre-existing item, status %d: %s", ctx.LastResponse.StatusCode, string(ctx.LastBody))
+		}
+		return nil
+	})
+
 	sc.Step(`^I create an item with the following details:$`, func(table *godog.Table) error {
 		payload := make(map[string]any)
 
