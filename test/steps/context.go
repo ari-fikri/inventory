@@ -12,6 +12,7 @@ import (
 type TestContext struct {
 	Handler         http.Handler
 	CurrentTenantID string
+	LastSKU         string
 	LastResponse    *http.Response
 	LastBody        []byte
 }

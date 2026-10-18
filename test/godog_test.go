@@ -22,8 +22,13 @@ func InitializeScenario(sc *godog.ScenarioContext) {
 	itemService := service.NewItemService(itemRepo)
 	itemHandler := inventoryHttp.NewItemHandler(itemService)
 
+	stockRepo := sqlite.NewStockRepository(db)
+	stockService := service.NewStockService(itemRepo, stockRepo)
+	stockHandler := inventoryHttp.NewStockHandler(stockService)
+
 	appRouter := inventoryHttp.NewRouter(inventoryHttp.RouterConfig{
-		ItemHandler: itemHandler,
+		ItemHandler:  itemHandler,
+		StockHandler: stockHandler,
 	})
 
 	testCtx := steps.NewTestContext(appRouter)
@@ -35,6 +40,7 @@ func InitializeScenario(sc *godog.ScenarioContext) {
 
 	steps.RegisterTenantSteps(sc, testCtx)
 	steps.RegisterItemSteps(sc, testCtx)
+	steps.RegisterStockSteps(sc, testCtx)
 }
 
 func TestFeatures(t *testing.T) {

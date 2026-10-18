@@ -7,7 +7,8 @@ import (
 )
 
 type RouterConfig struct {
-	ItemHandler *ItemHandler
+	ItemHandler  *ItemHandler
+	StockHandler *StockHandler
 }
 
 func NewRouter(cfg RouterConfig) http.Handler {
@@ -17,6 +18,12 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		mux.HandleFunc("POST /api/v1/items", cfg.ItemHandler.Create)
 		mux.HandleFunc("GET /api/v1/items", cfg.ItemHandler.List)
 		mux.HandleFunc("GET /api/v1/items/sku/{sku}", cfg.ItemHandler.GetBySKU)
+	}
+
+	if cfg.StockHandler != nil {
+		mux.HandleFunc("POST /api/v1/items/sku/{sku}/stock/in", cfg.StockHandler.StockIn)
+		mux.HandleFunc("GET /api/v1/items/sku/{sku}/stock", cfg.StockHandler.GetStock)
+		mux.HandleFunc("GET /api/v1/items/sku/{sku}/movements", cfg.StockHandler.ListMovements)
 	}
 
 	// Wrap entire API with TenantMiddleware

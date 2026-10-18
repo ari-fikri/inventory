@@ -1,0 +1,182 @@
+package http
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+	"time"
+
+	"new-inventory/internal/adapter/http/middleware"
+	"new-inventory/internal/domain"
+	"new-inventory/internal/port"
+)
+
+type StockHandler struct {
+	stockService port.StockService
+}
+
+func NewStockHandler(stockService port.StockService) *StockHandler {
+	return &StockHandler{stockService: stockService}
+}
+
+type StockInRequest struct {
+	Quantity  int    `json:"quantity"`
+	Reference string `json:"reference"`
+	Notes     string `json:"notes"`
+}
+
+type StockInResponse struct {
+	ItemID       string `json:"item_id"`
+	TenantID     string `json:"tenant_id"`
+	Quantity     int    `json:"quantity"`
+	MovementType string `json:"movement_type"`
+	MovementID   string `json:"movement_id"`
+	Reference    string `json:"reference"`
+	Notes        string `json:"notes"`
+}
+
+type StockLevelResponse struct {
+	ItemID    string `json:"item_id"`
+	TenantID  string `json:"tenant_id"`
+	Quantity  int    `json:"quantity"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+type StockMovementResponse struct {
+	ID           string `json:"id"`
+	TenantID     string `json:"tenant_id"`
+	ItemID       string `json:"item_id"`
+	MovementType string `json:"movement_type"`
+	Quantity     int    `json:"quantity"`
+	BalanceAfter int    `json:"balance_after"`
+	Reference    string `json:"reference"`
+	Notes        string `json:"notes"`
+	CreatedAt    string `json:"created_at"`
+}
+
+func (h *StockHandler) StockIn(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := middleware.GetTenantID(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "X-Tenant-ID header is required"})
+		return
+	}
+
+	sku := r.PathValue("sku")
+	if sku == "" {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "SKU parameter is required"})
+		return
+	}
+
+	var req StockInRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "invalid request body: " + err.Error()})
+		return
+	}
+
+	cmd := port.StockInCommand{
+		TenantID:  tenantID,
+		SKU:       sku,
+		Quantity:  req.Quantity,
+		Reference: req.Reference,
+		Notes:     req.Notes,
+	}
+
+	movement, stockLevel, err := h.stockService.StockIn(r.Context(), cmd)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrItemNotFound):
+			writeJSON(w, http.StatusNotFound, middleware.ErrorResponse{Error: "item not found"})
+		case errors.Is(err, domain.ErrInvalidQuantity):
+			writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: err.Error()})
+		default:
+			writeJSON(w, http.StatusInternalServerError, middleware.ErrorResponse{Error: "failed to process stock in"})
+		}
+		return
+	}
+
+	resp := StockInResponse{
+		ItemID:       stockLevel.ItemID,
+		TenantID:     stockLevel.TenantID,
+		Quantity:     stockLevel.Quantity,
+		MovementType: movement.MovementType,
+		MovementID:   movement.ID,
+		Reference:    movement.Reference,
+		Notes:        movement.Notes,
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *StockHandler) GetStock(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := middleware.GetTenantID(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "X-Tenant-ID header is required"})
+		return
+	}
+
+	sku := r.PathValue("sku")
+	if sku == "" {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "SKU parameter is required"})
+		return
+	}
+
+	stock, err := h.stockService.GetStock(r.Context(), tenantID, sku)
+	if err != nil {
+		if errors.Is(err, domain.ErrItemNotFound) {
+			writeJSON(w, http.StatusNotFound, middleware.ErrorResponse{Error: "item not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, middleware.ErrorResponse{Error: "failed to query stock"})
+		return
+	}
+
+	resp := StockLevelResponse{
+		ItemID:    stock.ItemID,
+		TenantID:  stock.TenantID,
+		Quantity:  stock.Quantity,
+		UpdatedAt: stock.UpdatedAt.Format(time.RFC3339Nano),
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *StockHandler) ListMovements(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := middleware.GetTenantID(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "X-Tenant-ID header is required"})
+		return
+	}
+
+	sku := r.PathValue("sku")
+	if sku == "" {
+		writeJSON(w, http.StatusBadRequest, middleware.ErrorResponse{Error: "SKU parameter is required"})
+		return
+	}
+
+	movements, err := h.stockService.ListMovements(r.Context(), tenantID, sku)
+	if err != nil {
+		if errors.Is(err, domain.ErrItemNotFound) {
+			writeJSON(w, http.StatusNotFound, middleware.ErrorResponse{Error: "item not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, middleware.ErrorResponse{Error: "failed to query movements"})
+		return
+	}
+
+	resps := make([]StockMovementResponse, 0, len(movements))
+	for _, m := range movements {
+		resps = append(resps, StockMovementResponse{
+			ID:           m.ID,
+			TenantID:     m.TenantID,
+			ItemID:       m.ItemID,
+			MovementType: m.MovementType,
+			Quantity:     m.Quantity,
+			BalanceAfter: m.BalanceAfter,
+			Reference:    m.Reference,
+			Notes:        m.Notes,
+			CreatedAt:    m.CreatedAt.Format(time.RFC3339Nano),
+		})
+	}
+
+	writeJSON(w, http.StatusOK, resps)
+}
