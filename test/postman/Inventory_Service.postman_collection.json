@@ -1460,6 +1460,102 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Submit Purchase Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Purchase order status is ORDERED\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql(\"ORDERED\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_alpha}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/purchase-orders/PO-1001/submit",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "purchase-orders",
+                "PO-1001",
+                "submit"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Receive Partial PO Delivery",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Purchase order status is PARTIALLY_RECEIVED\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql(\"PARTIALLY_RECEIVED\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_alpha}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"sku\": \"PO-ITEM-01\",\n      \"received_quantity\": 60\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/purchase-orders/PO-1001/receive",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "purchase-orders",
+                "PO-1001",
+                "receive"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }
