@@ -186,4 +186,75 @@ Handler --> Client : 400 Bad Request\n{"error": "cannot change valuation method 
 deactivate Handler
 deactivate MW
 
+== Purchase Order Lifecycle & Receiving Workflow ==
+Client -> MW : POST /api/v1/purchase-orders\nHeader: X-Tenant-ID: "tenant-acme"\nBody: {"po_number": "PO-1001", "supplier_id": "sup-1", "warehouse_id": "WH-MAIN", "items": [{"sku": "SKU-A", "quantity": 100, "unit_cost": 50.0}]}
+activate MW
+MW -> Handler : ctx = WithTenantID(ctx, "tenant-acme")
+activate Handler
+Handler -> Service : CreatePurchaseOrder(ctx, cmd)
+activate Service
+Service -> Repo : Create(ctx, po)
+activate Repo
+Repo -> DB : INSERT INTO purchase_orders, purchase_order_items (Status: DRAFT)
+DB --> Repo : OK
+Repo --> Service : nil
+deactivate Repo
+Service --> Handler : PurchaseOrder (DRAFT), nil
+deactivate Service
+Handler --> Client : 201 Created (PO Status: DRAFT)
+deactivate Handler
+deactivate MW
+
+Client -> MW : PATCH /api/v1/purchase-orders/PO-1001/submit\nHeader: X-Tenant-ID: "tenant-acme"
+activate MW
+MW -> Handler : ctx = WithTenantID(ctx, "tenant-acme")
+activate Handler
+Handler -> Service : SubmitPurchaseOrder(ctx, tenantID, "PO-1001")
+activate Service
+Service -> Repo : Update(ctx, po with status: ORDERED)
+activate Repo
+Repo -> DB : UPDATE purchase_orders SET status = 'ORDERED'
+DB --> Repo : OK
+Repo --> Service : nil
+deactivate Repo
+Service --> Handler : PurchaseOrder (ORDERED), nil
+deactivate Service
+Handler --> Client : 200 OK (PO Status: ORDERED)
+deactivate Handler
+deactivate MW
+
+Client -> MW : POST /api/v1/purchase-orders/PO-1001/receive\nHeader: X-Tenant-ID: "tenant-acme"\nBody: {"items": [{"sku": "SKU-A", "received_quantity": 60}]}
+activate MW
+MW -> Handler : ctx = WithTenantID(ctx, "tenant-acme")
+activate Handler
+Handler -> Service : ReceivePurchaseOrder(ctx, cmd)
+activate Service
+Service -> Service : Validate PO status (ORDERED/PARTIALLY_RECEIVED)\nValidate received_qty <= remaining_qty
+Service -> Service : StockService.StockIn(Tenant, SKU-A, WH-MAIN, Qty: 60, UnitCost: $50)
+activate Service #DarkSalmon
+Service -> Repo : RecordMovementWithCostLayer(IN, Qty: 60, UnitCost: $50)
+activate Repo
+Repo -> DB : UPDATE stock_levels (+60)\nINSERT stock_cost_layers (rem: 60, cost: $50)
+DB --> Repo : OK
+Repo --> Service : nil
+deactivate Repo
+deactivate Service
+Service -> Repo : UpdateItemReceivedQty(item_id, 60)
+activate Repo
+Repo -> DB : UPDATE purchase_order_items SET received_quantity = 60
+DB --> Repo : OK
+Repo --> Service : nil
+deactivate Repo
+Service -> Repo : Update(ctx, po with status: PARTIALLY_RECEIVED)
+activate Repo
+Repo -> DB : UPDATE purchase_orders SET status = 'PARTIALLY_RECEIVED'
+DB --> Repo : OK
+Repo --> Service : nil
+deactivate Repo
+Service --> Handler : PurchaseOrder (PARTIALLY_RECEIVED), nil
+deactivate Service
+Handler --> Client : 200 OK (PO Status: PARTIALLY_RECEIVED, Warehouse stock: 60, FIFO layer: $50)
+deactivate Handler
+deactivate MW
+
 @enduml

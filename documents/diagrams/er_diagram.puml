@@ -39,15 +39,79 @@ entity "stock_movements" as stock_movements {
     * tenant_id : TEXT [INDEX]
     * item_id : TEXT [FK -> items.id]
     * warehouse_id : TEXT [INDEX]
-    * movement_type : TEXT (IN / OUT / ADJUST)
+    * movement_type : TEXT (IN / OUT / ADJUST / TRANSFER_IN / TRANSFER_OUT)
     * quantity : INTEGER
     * balance_after : INTEGER
+    * total_cogs : REAL
     * reference : TEXT
     * notes : TEXT
     * created_at : TEXT (ISO8601)
 }
 
+entity "stock_cost_layers" as stock_cost_layers {
+    * id : TEXT [PK]
+    --
+    * tenant_id : TEXT [INDEX]
+    * item_id : TEXT [FK -> items.id]
+    * warehouse_id : TEXT [INDEX]
+    * quantity : INTEGER
+    * remaining_quantity : INTEGER
+    * unit_cost : REAL
+    * created_at : TEXT (ISO8601)
+}
+
+entity "tenant_valuation_settings" as tenant_valuation_settings {
+    * tenant_id : TEXT [PK]
+    --
+    * valuation_method : TEXT (FIFO)
+    * updated_at : TEXT (ISO8601)
+}
+
+entity "suppliers" as suppliers {
+    * id : TEXT [PK]
+    --
+    * tenant_id : TEXT [INDEX]
+    * name : TEXT
+    * contact_name : TEXT
+    * email : TEXT
+    * phone : TEXT
+    * created_at : TEXT (ISO8601)
+    --
+    UNIQUE(tenant_id, name)
+}
+
+entity "purchase_orders" as purchase_orders {
+    * id : TEXT [PK]
+    --
+    * tenant_id : TEXT [INDEX]
+    * po_number : TEXT
+    * supplier_id : TEXT [FK -> suppliers.id]
+    * warehouse_id : TEXT
+    * status : TEXT (DRAFT / ORDERED / PARTIALLY_RECEIVED / RECEIVED / CANCELLED)
+    * notes : TEXT
+    * created_at : TEXT (ISO8601)
+    * updated_at : TEXT (ISO8601)
+    --
+    UNIQUE(tenant_id, po_number)
+}
+
+entity "purchase_order_items" as purchase_order_items {
+    * id : TEXT [PK]
+    --
+    * po_id : TEXT [FK -> purchase_orders.id]
+    * tenant_id : TEXT [INDEX]
+    * item_id : TEXT [FK -> items.id]
+    * sku : TEXT
+    * ordered_quantity : INTEGER
+    * received_quantity : INTEGER
+    * unit_cost : REAL
+}
+
 items ||--o| stock_levels : "tracks current stock for"
 items ||--o{ stock_movements : "audit trail of changes"
+items ||--o{ stock_cost_layers : "active FIFO cost layers"
+suppliers ||--o{ purchase_orders : "supplies"
+purchase_orders ||--|{ purchase_order_items : "contains"
+items ||--o{ purchase_order_items : "referenced in line item"
 
 @enduml

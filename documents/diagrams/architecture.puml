@@ -17,6 +17,7 @@ package "Primary / Driving Adapters (Inbound)" {
         [Item Handler] as ItemHandler
         [Stock Handler] as StockHandler
         [Valuation Handler] as ValuationHandler
+        [Purchase Order Handler] as POHandler
     }
 }
 
@@ -25,15 +26,19 @@ package "Core Domain & Application Ports" {
         interface "ItemService" as IItemService
         interface "StockService" as IStockService
         interface "ValuationService" as IValuationService
+        interface "PurchaseOrderService" as IPOService
         interface "ItemRepository" as IItemRepo
         interface "StockRepository" as IStockRepo
         interface "ValuationRepository" as IValuationRepo
+        interface "SupplierRepository" as ISupplierRepo
+        interface "PurchaseOrderRepository" as IPORepo
     }
 
     package "Domain Logic & Models" {
         [Item Domain Entity] as ItemEntity
         [Stock Movement Entity] as StockEntity
         [Cost Layer & Valuation Models] as ValuationEntity
+        [Supplier & Purchase Order Entities] as POEntity
         [Inventory & FIFO Invariants] as DomainRules
     }
 }
@@ -43,6 +48,8 @@ package "Secondary / Driven Adapters (Outbound)" {
         [SQLite Item Repository] as SqliteItemRepo
         [SQLite Stock Repository] as SqliteStockRepo
         [SQLite Valuation Repository] as SqliteValuationRepo
+        [SQLite Supplier Repository] as SqliteSupplierRepo
+        [SQLite Purchase Order Repository] as SqlitePORepo
     }
 }
 
@@ -55,28 +62,39 @@ Godog --> TenantMW : Test HTTP Execution
 TenantMW --> ItemHandler : Scoped Context
 TenantMW --> StockHandler : Scoped Context
 TenantMW --> ValuationHandler : Scoped Context
+TenantMW --> POHandler : Scoped Context
 
 ItemHandler --> IItemService
 StockHandler --> IStockService
 ValuationHandler --> IValuationService
+POHandler --> IPOService
 
+IPOService ..> IStockService : restocks via StockIn
 IItemService ..> ItemEntity
 IStockService ..> StockEntity
 IValuationService ..> ValuationEntity
+IPOService ..> POEntity
 ItemEntity ..> DomainRules
 StockEntity ..> DomainRules
 ValuationEntity ..> DomainRules
+POEntity ..> DomainRules
 
 IItemService --> IItemRepo
 IStockService --> IStockRepo
 IValuationService --> IValuationRepo
+IPOService --> ISupplierRepo
+IPOService --> IPORepo
 
 SqliteItemRepo .up.|> IItemRepo
 SqliteStockRepo .up.|> IStockRepo
 SqliteValuationRepo .up.|> IValuationRepo
+SqliteSupplierRepo .up.|> ISupplierRepo
+SqlitePORepo .up.|> IPORepo
 
 SqliteItemRepo --> SQLite : SQL with tenant_id filter
 SqliteStockRepo --> SQLite : SQL with tenant_id filter
 SqliteValuationRepo --> SQLite : SQL with tenant_id filter
+SqliteSupplierRepo --> SQLite : SQL with tenant_id filter
+SqlitePORepo --> SQLite : SQL with tenant_id filter
 
 @enduml
